@@ -5,16 +5,19 @@
 #include "threads/thread.h"
 #include "userprog/syscall.h"
 
+// TODO: Documentation Added for shutdown
+#include "devices/shutdown.h"
+
 
 static void syscall_handler(struct intr_frame *);
 void sys_halt(void);
-void sys_exit(int);
-int sys_write(int fd, char*buffer, unsigned size);
+void sys_exit(int status);
+int sys_write(int fd, char *buffer, unsigned size);
 
 
 //  TODO: confirm we want to do the following 
 // function to extract system call arguments from the stack 
-//static int fetch_arguement(void *esp, int arg_index);
+// static int fetch_arguement(void *esp, int arg_index);
 
 void
 syscall_init(void)
@@ -66,7 +69,7 @@ syscall_handler(struct intr_frame *f UNUSED)
             // not sure if I want to do thins 
             break;
         }
-        ////printf("system call!\n");=
+        //printf("system call!\n");
         //thread_exit();
 }
 /* 
@@ -85,12 +88,15 @@ this is the status that will be returned. Conventionally,
 a status of 0 indicates success and nonzero values indicate 
 errors.
 */
+
 void sys_exit(int status){
     struct thread *cur = thread_current();// Get the current thread 
 
     cur->exitStatus = status;// Set the exit status for the current process
+
     printf("%s: exit(%d)\n", cur->name, status);// where do we get args-none m where do we find the name every process has to have a name 
     thread_exit(); // Terminate the thread 
+    //process_exit();
 }
 
 /*  Writes size bytes from buffer to the open file fd. Returns 

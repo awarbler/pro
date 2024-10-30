@@ -37,22 +37,22 @@ process_execute(const char *cmd)
     tid_t tid;
     char *file_name, *save_ptr;
 
-    /* Make a copy of FILE_NAME.
-     * Otherwise there's a race between the caller and load(). */
-    cmd_copy = palloc_get_page(0);
-
     // NOTE:
     // To see this print, make sure LOGGING_LEVEL in this file is <= L_TRACE (6)
     // AND LOGGING_ENABLE = 1 in lib/log.h
     // Also, probably won't pass with logging enabled. //log(L_TRACE, "Started process execute: %s", cmd);
     log(L_TRACE, "Started process execute: %s", cmd_copy);
 
-    if (cmd_copy == NULL) {
+       /* Make a copy of FILE_NAME.
+     * Otherwise there's a race between the caller and load(). */
+    cmd_copy = palloc_get_page(0);// copying to avoid modifying original args.c test
+        if (cmd_copy == NULL) {
         return TID_ERROR;
     }
     strlcpy(cmd_copy, cmd, PGSIZE);
-    // TODO: Parse the string and tokenize it 
-    file_name = strtok_r(cmd_copy, " ", &save_ptr);
+    // TODO : args.c test put into documentation 
+    // Parse the string and tokenize it using strtok_r to break the command line into individual words
+    file_name = strtok_r(cmd_copy, " ", &save_ptr); 
 
     //char *token, *save_ptr;
     //token = strtok_r(cmd_copy, " ", &save_ptr);
@@ -61,10 +61,11 @@ process_execute(const char *cmd)
     //    return TID_ERROR;
     //}
 
-    /* Create a new thread to execute FILE_NAME. */
-    tid = thread_create(cmd_copy, PRI_DEFAULT, start_process, cmd_copy);//  is this cmd or cmd_copy first arguement
+    /* Create a new thread to execute FILE_NAME. 
+     * args.c test The thread is created to start executing at start_process()*/
+    tid = thread_create(file_name, PRI_DEFAULT, start_process, cmd_copy);
     if (tid == TID_ERROR) {
-        palloc_free_page(cmd_copy);
+        palloc_free_page(cmd_copy); // Free the allocated page if thread creation fails
     }
     return tid;
 }
@@ -78,12 +79,13 @@ start_process(void *cmd)
     char *file_name = cmd;
     struct intr_frame if_;
     bool success;
-    struct thread *cur = thread_current();// current thread
+    struct thread *cur = thread_current();// TODO: ADD to documentation args.c testGet the current thread
 
     log(L_TRACE, "start_process()");
     
-    // update the name of hte process
-    strlcpy(cur->name, file_name, strlen(file_name) +1);// TODO confirm that david added ajw1029/2024
+    // Update the name of process TODO: Add to documentation args.c test 
+    strlcpy(cur->name, file_name, strlen(file_name) +1);
+
     /* Initialize interrupt frame and load executable. */
     memset(&if_, 0, sizeof if_);
     if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -121,12 +123,16 @@ int
 process_wait(tid_t child_tid UNUSED)
 {
     int i; 
+    for (i = 0; i < 1000000000; i++);
 
-    while (1) {
-        for (i = 0; i < 100000000; i++) {}
-    }
     //while (1) {} // give the process a chance to run edit 10282024
     //return -1;
+    // enforce on ordering parent wait should block for child exit to be done 
+    // need to have a wait for both to synchronize 
+    // version one use a global semaphore 
+    // declare call it a struct process wait after the child 
+    // is the parent process exit is child 
+    // initialize the semaphore create 
 }
 
 /* Free the current process's resources. */
@@ -136,8 +142,9 @@ process_exit(void)
     struct thread *cur = thread_current();
     uint32_t *pd;
 
-    // print exit message 
+    // print exit message in syscall.c
     //printf("%s: exit(%d)\n", cur->name, cur->exitStatus);
+    
 
     /* Destroy the current process's page directory and switch back
      * to the kernel-only page directory. */
@@ -233,7 +240,7 @@ struct Elf32_Phdr {
 #define PF_W 2 /* Writable. */
 #define PF_R 4 /* Readable. */
 
-static bool setup_stack(void **esp, const char *cmd);// TODO confirm changed const char cmd 
+static bool setup_stack(void **esp, const char *cmd);// TODO: Documentation args.c test added const char cmd to setup stack
 
 static bool validate_segment(const struct Elf32_Phdr *, struct file *);
 static bool load_segment(struct file *file, off_t ofs, uint8_t *upage, uint32_t read_bytes, uint32_t zero_bytes, bool writable);
@@ -252,7 +259,7 @@ load(const char *cmdstring, void(**eip) (void), void **esp) // changed file_name
     off_t file_ofs;
     bool success = false;
     int i;
-    char *file_name; // TODO: check to see if I keep this
+    char *file_name; // TODO: Dcocumentation args.c testcheck to see if I keep this
 
     /* Allocate and activate page directory. */
     t->pagedir = pagedir_create();
@@ -263,7 +270,7 @@ load(const char *cmdstring, void(**eip) (void), void **esp) // changed file_name
 
     /* Open executable file. */
     // TODO: tokenize cmdstring and get the first token as filename
-    file_name = cmdstring; //  need to change later 
+    file_name = cmdstring; //  TODO : Documenation added args.c testneed to change later 
     file = filesys_open(file_name); // keeping filename because it is a file we are openings. 
     if (file == NULL) {
         printf("load: %s: open failed\n", file_name);
@@ -488,20 +495,30 @@ setup_stack(void **esp, const char *cmdstring) // TODO: make it a const char *cm
     char *cmd_copy, *token, *save_ptr;
     int i;
 
+    // adding union 
+    //union {
+        //uint8_t *byte;
+        //uint32_t *word;
+    //} Ptr;
+    
+
 
     log(L_TRACE, "setup_stack()");
-
+    /* Allocate a zeroed page for the user stack args.c test*/
     kpage = palloc_get_page(PAL_USER | PAL_ZERO);
     if (kpage != NULL) {
         success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
         if (success) {
-            *esp = PHYS_BASE; // change made by ajw 10/28/2024
+            *esp = PHYS_BASE; // Initialzied stack pointer at the top of vm --- 
             //*esp -= 12;
+
             // Tokenize the command string 
-            char *cmd_copy = palloc_get_page(0);
+            char *cmd_copy = palloc_get_page(0); // Make a copy of the command string to avoid modifying the original args.c test
             if (cmd_copy == NULL) {
                 return false;
             }
+
+            /* Tokenize the command string and store the arguments in argv[]*/
             strlcpy(cmd_copy,cmdstring, PGSIZE);
             for(token = strtok_r(cmd_copy, " ", &save_ptr); 
                 token != NULL;
@@ -509,43 +526,64 @@ setup_stack(void **esp, const char *cmdstring) // TODO: make it a const char *cm
                     argv[argc++] = token;
             }
 
-            // Push arguments onto the stack in revers order 
+            // Using Union to move the pointer  
+            //Ptr.byte = (uint8_t *)*esp;
+            //Push arguments onto the stack in revers order args.c test
             for (i = argc - 1; i >= 0; i--) {
-                *esp -= strlen(argv[i]) + 1; // move th stack pointer down 
-                memcpy(*esp, argv[i], strlen(argv[i]) + 1); // copy arguement to the stack 
-                argv[i] = *esp; // save teh address of the argument 
+                //Ptr.byte -= strlen(argv[i] + 1);
+                *esp -= strlen(argv[i]) + 1; // Adjust stack pointer - move th stack pointer down 
+                memcpy(*esp, argv[i], strlen(argv[i]) + 1); // Copy arguement to the stack 
+                //memcpy(Ptr.byte, argv[i], strlen(argv[i]) + 1);
+                argv[i] = *esp; // Store/save the address of the argument on the stack. 
+                //argv[i] = (char *)Ptr.byte; 
             }
 
-            // world align the stack (align to 4byte boundary)
+            /* Align the stack (align to 4byte boundary)args.c test*/
             while ((uintptr_t)*esp % 4 != 0) {
-                *esp -=1;
+            //while ((uintptr_t)Ptr.byte % 4 != 0) {
+                *esp -= 1;
                 *(uint8_t *)*esp = 0;
+                //Ptr.byte -= 1;
+                //*Ptr.byte = 0;
             }
-            // push the addresses of argv 
-            *esp -= sizeof(char *);
-            *(char **)*esp = NULL;
 
+            //* Push the addresses of argv args.c test*/
+            *esp -= sizeof(char *);
+            *(char **)*esp = NULL;// Push argv[1] = NULL
+            // push argv the addres argv [] args.c test
+            //Ptr.word--;
+            //*Ptr.word = 0; // null pointer sentinel for argv[argc]
             for (i = argc -1; i >= 0; i--) {
                 *esp -= sizeof(char *);
-                *(char **)*esp = argv[i]; // push each arguments address 
+                *(char **)*esp = argv[i]; 
             }
             
-            // push argv the addres argv []
+            //for (i = argc -1; i >= 0; i--) {
+            //    Ptr.word--;
+            //    *Ptr.word = (uint8_t)argv[i]; 
+            //}
+
+            // push argv the addres argv [] args.c test
+            //Ptr.word --;
+            //*Ptr.word = (uint32_t)(Ptr.word +1 );
+            //Ptr.word --;
+            //*Ptr.word = argc;
             char **argv_ptr = *esp;
             *esp -= sizeof(char **);
-            *(char ***)*esp = argv_ptr;
-
-            // push argc 
+            *(char ***)*esp = argv_ptr; 
+//
+            // push argc args.c test
             *esp -= sizeof(char **);
-            *(int *)*esp = argc;
+            *(int *)*esp = argc; // Push argc
+            //Ptr.byte -= 1;
+            //*Ptr.byte = 0;
 
-            // push a fake return address 
+            // push a fake return address args.c test
             *esp -= sizeof(void *);
+            //*esp = Ptr.word; // update esp to refelct the current stack pointers
             *(void **)*esp = 0;
 
-            palloc_free_page(cmd_copy);
-
-            
+            palloc_free_page(cmd_copy); //  Free temporary copy of the command
             
         } else {
             palloc_free_page(kpage);
@@ -574,4 +612,3 @@ install_page(void *upage, void *kpage, bool writable)
     return pagedir_get_page(t->pagedir, upage) == NULL
            && pagedir_set_page(t->pagedir, upage, kpage, writable);
 }
-//ajw
