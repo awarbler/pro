@@ -37,15 +37,16 @@ process_execute(const char *cmd)
     tid_t tid;
     char *file_name, *save_ptr;
 
+    /* Make a copy of FILE_NAME.
+     * Otherwise there's a race between the caller and load(). */
+    cmd_copy = palloc_get_page(0);
+
     // NOTE:
     // To see this print, make sure LOGGING_LEVEL in this file is <= L_TRACE (6)
     // AND LOGGING_ENABLE = 1 in lib/log.h
     // Also, probably won't pass with logging enabled. //log(L_TRACE, "Started process execute: %s", cmd);
     log(L_TRACE, "Started process execute: %s", cmd_copy);
 
-    /* Make a copy of FILE_NAME.
-     * Otherwise there's a race between the caller and load(). */
-    cmd_copy = palloc_get_page(0);
     if (cmd_copy == NULL) {
         return TID_ERROR;
     }
@@ -573,3 +574,4 @@ install_page(void *upage, void *kpage, bool writable)
     return pagedir_get_page(t->pagedir, upage) == NULL
            && pagedir_set_page(t->pagedir, upage, kpage, writable);
 }
+//ajw

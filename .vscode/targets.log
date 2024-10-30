@@ -6,7 +6,7 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Wed Oct 30 08:41:28 2024
+# Make data base, printed on Wed Oct 30 10:59:50 2024
 
 # Variables
 
@@ -99,7 +99,7 @@ XDG_SESSION_DESKTOP = ubuntu
 # environment
 SSH_AUTH_SOCK = /run/user/1000/keyring/ssh
 # environment
-GIO_LAUNCHED_DESKTOP_FILE_PID = 94364
+GIO_LAUNCHED_DESKTOP_FILE_PID = 123532
 # automatic
 %F = $(notdir $%)
 # environment
@@ -181,8 +181,6 @@ MFLAGS = -pqrR
 # makefile (from 'Makefile', line 17)
 TAGS_SOURCES = find $(TAGS_SUBDIRS) -name \*.[chS] -print
 # environment
-VSCODE_L10N_BUNDLE_LOCATION = 
-# environment
 GDK_BACKEND = x11
 # automatic
 +F = $(notdir $+)
@@ -213,9 +211,9 @@ GJS_DEBUG_OUTPUT = stderr
 # environment
 LANG = C
 # environment
-VSCODE_PID = 94364
+VSCODE_PID = 123532
 # variable set hash-table stats:
-# Load=102/1024=10%, Rehash=0, Collisions=12/131=9%
+# Load=101/1024=10%, Rehash=0, Collisions=12/130=9%
 
 # Pattern-specific Variable Values
 
@@ -278,9 +276,9 @@ distclean:: clean
 tags::
 #  Implicit rule search has not been done.
 #  Modification time never checked.
- 
 #  File has not been updated.
 #  recipe to execute (from 'Makefile', line 23):
+ 
 	ctags -T --no-warn `$(TAGS_SOURCES)`
 
 # Not a target:
@@ -339,6 +337,6 @@ TAGS::
 # strcache performance: lookups = 50 / hit rate = 30%
 # hash-table stats:
 # Load=35/8192=0%, Rehash=0, Collisions=1/50=2%
-# Finished Make data base on Wed Oct 30 08:41:28 2024
+# Finished Make data base on Wed Oct 30 10:59:50 2024
 
  
