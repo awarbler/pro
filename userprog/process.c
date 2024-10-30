@@ -31,9 +31,9 @@ static bool load(const char *cmdline, void(**eip) (void), void **esp);
  * before process_execute() returns.  Returns the new process's
  * thread id, or TID_ERROR if the thread cannot be created. */
 tid_t
-process_execute(const char *cmd) //TODO:  change *filename to *cmd
+process_execute(const char *cmd) 
 {
-    char *cmd_copy; // TODO: change to cmd_copy per teachers example 
+    char *cmd_copy; 
     tid_t tid;
     char *file_name, *save_ptr;
 
@@ -61,7 +61,7 @@ process_execute(const char *cmd) //TODO:  change *filename to *cmd
     //}
 
     /* Create a new thread to execute FILE_NAME. */
-    tid = thread_create(file_name, PRI_DEFAULT, start_process, cmd_copy);//  is this cmd or cmd_copy first arguement
+    tid = thread_create(cmd_copy, PRI_DEFAULT, start_process, cmd_copy);//  is this cmd or cmd_copy first arguement
     if (tid == TID_ERROR) {
         palloc_free_page(cmd_copy);
     }
@@ -71,7 +71,7 @@ process_execute(const char *cmd) //TODO:  change *filename to *cmd
 /* A thread function that loads a user process and starts it
  * running. */
 static void
-start_process(void *cmd) //TODO: confirm we keep the void*cmd instead of void*file_name
+start_process(void *cmd) 
 {
 
     char *file_name = cmd;
@@ -119,9 +119,13 @@ start_process(void *cmd) //TODO: confirm we keep the void*cmd instead of void*fi
 int
 process_wait(tid_t child_tid UNUSED)
 {
+    int i; 
 
-    while (1) {} // give the process a chance to run edit 10282024
-        //return -1;
+    while (1) {
+        for (i = 0; i < 100000000; i++) {}
+    }
+    //while (1) {} // give the process a chance to run edit 10282024
+    //return -1;
 }
 
 /* Free the current process's resources. */
@@ -132,7 +136,7 @@ process_exit(void)
     uint32_t *pd;
 
     // print exit message 
-    printf("%s: exit(%d)\n", cur->name, cur->exitStatus);
+    //printf("%s: exit(%d)\n", cur->name, cur->exitStatus);
 
     /* Destroy the current process's page directory and switch back
      * to the kernel-only page directory. */
@@ -258,7 +262,7 @@ load(const char *cmdstring, void(**eip) (void), void **esp) // changed file_name
 
     /* Open executable file. */
     // TODO: tokenize cmdstring and get the first token as filename
-    file_name = cmdstring; //  todo check to see if I keep this 
+    file_name = cmdstring; //  need to change later 
     file = filesys_open(file_name); // keeping filename because it is a file we are openings. 
     if (file == NULL) {
         printf("load: %s: open failed\n", file_name);
@@ -545,7 +549,7 @@ setup_stack(void **esp, const char *cmdstring) // TODO: make it a const char *cm
         } else {
             palloc_free_page(kpage);
         }
-        hex_dump( *(int*)esp, *esp, 128, true ); // NOTE: uncomment this to check arg passing
+        //hex_dump( *(int*)esp, *esp, 128, true ); // NOTE: uncomment this to check arg passing
     }
     return success;
 }

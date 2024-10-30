@@ -6,7 +6,7 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Tue Oct 29 21:18:14 2024
+# Make data base, printed on Wed Oct 30 08:41:28 2024
 
 # Variables
 
@@ -16,6 +16,8 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 ?F = $(notdir $?)
 # environment
 DESKTOP_SESSION = ubuntu
+# environment
+VSCODE_CODE_CACHE_PATH = /home/user1/.config/Code/CachedData/384ff7382de624fb94dbaf6da11977bba1ecd427
 # default
 .SHELLFLAGS := -c
 # environment
@@ -97,7 +99,7 @@ XDG_SESSION_DESKTOP = ubuntu
 # environment
 SSH_AUTH_SOCK = /run/user/1000/keyring/ssh
 # environment
-GIO_LAUNCHED_DESKTOP_FILE_PID = 2652
+GIO_LAUNCHED_DESKTOP_FILE_PID = 94364
 # automatic
 %F = $(notdir $%)
 # environment
@@ -121,7 +123,7 @@ HOME = /home/user1
 # environment
 LESSCLOSE = /usr/bin/lesspipe %s %s
 # environment
-VSCODE_CODE_CACHE_PATH = /home/user1/.config/Code/CachedData/384ff7382de624fb94dbaf6da11977bba1ecd427
+PrlDRIImportFD = 10
 # environment
 LOGNAME = user1
 # environment
@@ -211,9 +213,9 @@ GJS_DEBUG_OUTPUT = stderr
 # environment
 LANG = C
 # environment
-VSCODE_PID = 2652
+VSCODE_PID = 94364
 # variable set hash-table stats:
-# Load=101/1024=10%, Rehash=0, Collisions=11/130=8%
+# Load=102/1024=10%, Rehash=0, Collisions=12/131=9%
 
 # Pattern-specific Variable Values
 
@@ -221,9 +223,9 @@ VSCODE_PID = 2652
 
 # Directories
 
-# . (device 64768, inode 1723030): 22 files, no impossibilities.
+# . (device 64768, inode 1723030): 24 files, no impossibilities.
 
-# 22 files, no impossibilities in 1 directories.
+# 24 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -276,10 +278,10 @@ distclean:: clean
 tags::
 #  Implicit rule search has not been done.
 #  Modification time never checked.
+ 
 #  File has not been updated.
 #  recipe to execute (from 'Makefile', line 23):
 	ctags -T --no-warn `$(TAGS_SOURCES)`
- 
 
 # Not a target:
 Makefile:
@@ -331,12 +333,12 @@ TAGS::
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 33 / storage = 301 B / avg = 9 B
-# current buf: size = 8162 B / used = 301 B / count = 33 / avg = 9 B
+# strcache buffers: 1 (0) / strings = 35 / storage = 312 B / avg = 8 B
+# current buf: size = 8162 B / used = 312 B / count = 35 / avg = 8 B
 
-# strcache performance: lookups = 48 / hit rate = 31%
+# strcache performance: lookups = 50 / hit rate = 30%
 # hash-table stats:
-# Load=33/8192=0%, Rehash=0, Collisions=1/48=2%
-# Finished Make data base on Tue Oct 29 21:18:14 2024
+# Load=35/8192=0%, Rehash=0, Collisions=1/50=2%
+# Finished Make data base on Wed Oct 30 08:41:28 2024
 
  
