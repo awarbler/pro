@@ -501,8 +501,6 @@ setup_stack(void **esp, const char *cmdstring) // TODO: make it a const char *cm
         //uint32_t *word;
     //} Ptr;
     
-
-
     log(L_TRACE, "setup_stack()");
     /* Allocate a zeroed page for the user stack args.c test*/
     kpage = palloc_get_page(PAL_USER | PAL_ZERO);
@@ -527,7 +525,8 @@ setup_stack(void **esp, const char *cmdstring) // TODO: make it a const char *cm
             }
 
             // Using Union to move the pointer  
-            //Ptr.byte = (uint8_t *)*esp;
+            // Ptr.byte = (uint8_t *)*esp;
+            
             //Push arguments onto the stack in revers order args.c test
             for (i = argc - 1; i >= 0; i--) {
                 //Ptr.byte -= strlen(argv[i] + 1);
