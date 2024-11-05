@@ -34,6 +34,21 @@ David Cho <email@utexas.edu>
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
+Right now I am arranging argv[] in the right order on the stack to arrange argv correctly I push them in reverse order.
+since the stacks grow downwards, I push arguments in reverse order. I calculate 
+stack alignment to ensure th stack is 4 bytes aligned by adding padding
+if necessary after pushing all arguments. I save the addresses of the 
+arugments. After each push I store the address back in the argv and the address will 
+later be pushed onto the stack to form the argv array. After arrangeing argv on the stack
+, i push argc and th argv pointer. so in theory I tried to iterate over the 
+arguements in reverse, push each one, align the stack, then push argc, argv and a null
+null return address. 
+
+To avoid overlow in the stack, I limited the number of arguments, by implementing argv to 128, this 
+ensures there is enough space without crossing page boundaries. I  monitor the stack 
+size by always checking the space used by aruments to avoid overflowing. In 
+pintos this ahppens within a single page for the stack. 
+
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?

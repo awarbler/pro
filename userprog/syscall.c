@@ -5,17 +5,25 @@
 #include "threads/thread.h"
 #include "userprog/syscall.h"
 
-// TODO: Documentation Added for shutdown
+// TODO: Documentation Added for shutdown for sys_halt
 #include "devices/shutdown.h"
+// TODO: document added for Input device, used for syst_read input_getc 
+#include "devices/input.h"
+// TODO: document Virtual address checking 
+#include "threads/vaddr.h"
+// TODO: adocument Page directory access 
+#include "userprog/pagedir.h"
 
-
+// TODO: document Function prototypes for system calls
 static void syscall_handler(struct intr_frame *);
 void sys_halt(void);
 void sys_exit(int status);
 int sys_write(int fd, char *buffer, unsigned size);
+int sys_read(int fd, void *buffer, unsigned size);
 
-static int get_user (const uint8_t *uaddr); // TODO: add to documentation 
-static bool put_user (uint8_t *udst, uint8_t byte); // TODO: add to documentation 
+// TODO: document 
+static int get_user (const uint8_t *uaddr); // TODO: Read user memory safely
+static bool put_user (uint8_t *udst, uint8_t byte); // TODO: Wriet user memory safely
 
 
 //  TODO: confirm we want to do the following 
@@ -28,20 +36,30 @@ syscall_init(void)
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+// System call handler for processing all syscall requests 
 static void
 syscall_handler(struct intr_frame *f UNUSED)
 {
     
+    
     /* Remove these when implementing syscalls */
     int * usp = f->esp;
+ 
+    // TODO document Validate user pointer to avoid accessing invalid memory 
+    if (!is_user_vaddr(usp) || pagedir_get_page(thread_current()->pagedir,usp) == NULL) {
+        sys_exit(-1);
+    }
     //printf("Callno = %d\n" , *usp);
     int callno = *usp;
+
     switch (callno) {
         case SYS_HALT: 
-            sys_halt();
-            break; /* Halt the operating system. */
-        
+            sys_halt(); /* Halt the operating system. */   
+            break; 
         case SYS_EXIT: 
+            if (!is_user_vaddr(usp + 1) || get_user((uint8_t *)usp + 1) == -1) {
+                sys_exit(-1);
+            }
             sys_exit(*(usp + 1)); /* Terminate this process. need this to pass first for testcase */
             break;
         case SYS_EXEC:      /* Start another process. */
@@ -56,10 +74,11 @@ syscall_handler(struct intr_frame *f UNUSED)
             break;
         case SYS_FILESIZE:  /* Obtain a file's size. */
             break;
-        case SYS_READ:      /* Read from a file. */
+        case SYS_READ:      /* Read from a file. */ 
+            f ->eax = sys_read(*(usp+1), (void*)*(usp+2), *(usp+3));
             break;
         case SYS_WRITE:     /* Write to a file. */
-            sys_write(*(usp+1), (char*)*(usp+2), *(usp+3));    
+            f->eax = sys_write(*(usp+1), (char*)*(usp+2), *(usp+3));   
             break;
         case SYS_SEEK:      /* Change position in a file. */
             break;
@@ -70,6 +89,7 @@ syscall_handler(struct intr_frame *f UNUSED)
         default:
             // handle unknow system calls 
             // not sure if I want to do thins 
+            sys_exit(-1);
             break;
         }
         //printf("system call!\n");
@@ -91,13 +111,12 @@ this is the status that will be returned. Conventionally,
 a status of 0 indicates success and nonzero values indicate 
 errors.
 */
-
 void sys_exit(int status){
     struct thread *cur = thread_current();// Get the current thread 
-
     cur->exitStatus = status;// Set the exit status for the current process
 
-    printf("%s: exit(%d)\n", cur->name, status);// where do we get args-none m where do we find the name every process has to have a name 
+    printf("%s: exit(%d)\n", cur->name, status); // LOG progress of exit status 
+    // where do we get args-none m where do we find the name every process has to have a name 
     thread_exit(); // Terminate the thread 
     //process_exit();
 }
@@ -120,15 +139,44 @@ void sys_exit(int status){
     interleaved on the console, confusing both human readers and 
     our grading scripts.
 */
-
 int sys_write(int fd, char *buffer, unsigned size) {
+    // Validate buffer address range within user address space 
+    if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL 
+    || !is_user_vaddr(buffer + size) ||   pagedir_get_page(thread_current()->pagedir, buffer + size) == NULL)
+    {
+        sys_exit(-1); // Exit status if pointer is invalid ===validate arguments
+    }
+
     // stdout == fd ==1 fd 1 wries to buffer 
-    if (fd ==1) {
+    if (fd == 1) { // Writing to console (stdout)
+
         // write to the console
-        putbuf(buffer, size);
-        return size; // not sure if I want to do this confirm 
+        putbuf(buffer, size); // output buffer content to console 
+        return size; // Return number of bytes written ---not sure if I want to do this confirm 
     }
     return -1; // for now, return -1 for unsupported file descriptors 
+}
+// Reads size bytes from the file open as fd into buffer. 
+// Returns the number of bytes actually read (0 at end of file), 
+// or -1 if the file could not be read (due to a condition other
+// than end of file). Fd 0 reads from the keyboard using input_getc().
+int sys_read(int fd, void *buffer, unsigned size) {
+    if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL 
+    || !is_user_vaddr(buffer + size) ||   pagedir_get_page(thread_current()->pagedir, buffer + size) == NULL)
+    {
+        sys_exit(-1); // validate arguments
+    }
+    if (fd == 0) {
+
+        unsigned i;
+        for (i = 0; i < size; i++) {
+            if (!put_user(((uint8_t *)buffer) + i, input_getc())) {
+                sys_exit(-1);
+            }
+        }
+        return size; // returns the number of bytes to read
+    }
+    return -1; // Return -1 for unsupported file descriptors 
 }
     
 /* System Call: pid_t exec (const char *cmd_line) Runs the executable whose name is given in cmd_line, passing any given arguments, and returns the new process's program id (pid). Must return pid -1, which otherwise should not be a valid pid, if the program cannot load or run for any reason. Thus, the parent process cannot return from the exec until it knows whether the child process successfully loaded its executable. You must use appropriate synchronization to ensure this.
@@ -151,9 +199,6 @@ Each process has an independent set of file descriptors. File descriptors are no
 When a single file is opened more than once, whether by a single process or different processes, each open returns a new file descriptor. Different file descriptors for a single file are closed independently in separate calls to close and they do not share a file position.
 
 System Call: int filesize (int fd) Returns the size, in bytes, of the file open as fd.
-
-System Call: int read (int fd, void *buffer, unsigned size) Reads size bytes from the file open as fd into buffer. Returns the number of bytes actually read (0 at end of file), or -1 if the file could not be read (due to a condition other than end of file). Fd 0 reads from the keyboard using input_getc().
-
 
 System Call: void seek (int fd, unsigned position) Changes the next byte to be read or written in open file fd to position, expressed in bytes from the beginning of the file. (Thus, a position of 0 is the file's start.)
 A seek past the current end of a file is not an error. A later read obtains 0 bytes, indicating end of file. A later write extends the file, filling any unwritten gap with zeros. (However, in Pintos files have a fixed length until project 4 is complete, so writes past end of file will return an error.) These semantics are implemented in the file system and do not require any special effort in system call implementation.

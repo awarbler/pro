@@ -143,7 +143,7 @@ process_exit(void)
     uint32_t *pd;
 
     // print exit message in syscall.c
-    //printf("%s: exit(%d)\n", cur->name, cur->exitStatus);
+    // printf("%s: exit(%d)\n", cur->name, cur->exitStatus);
     
 
     /* Destroy the current process's page directory and switch back
@@ -270,7 +270,7 @@ load(const char *cmdstring, void(**eip) (void), void **esp) // changed file_name
 
     /* Open executable file. */
     // TODO: tokenize cmdstring and get the first token as filename
-    file_name = cmdstring; //  TODO : Documenation added args.c testneed to change later 
+    file_name = cmdstring; //  TODO : Documenation added args.c test is this const char ? need to change later 
     file = filesys_open(file_name); // keeping filename because it is a file we are openings. 
     if (file == NULL) {
         printf("load: %s: open failed\n", file_name);
@@ -501,6 +501,8 @@ setup_stack(void **esp, const char *cmdstring) // TODO: make it a const char *cm
         //uint32_t *word;
     //} Ptr;
     
+
+
     log(L_TRACE, "setup_stack()");
     /* Allocate a zeroed page for the user stack args.c test*/
     kpage = palloc_get_page(PAL_USER | PAL_ZERO);
@@ -525,8 +527,7 @@ setup_stack(void **esp, const char *cmdstring) // TODO: make it a const char *cm
             }
 
             // Using Union to move the pointer  
-            // Ptr.byte = (uint8_t *)*esp;
-            
+            //Ptr.byte = (uint8_t *)*esp;
             //Push arguments onto the stack in revers order args.c test
             for (i = argc - 1; i >= 0; i--) {
                 //Ptr.byte -= strlen(argv[i] + 1);
