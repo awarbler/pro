@@ -6,7 +6,7 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Thu Oct 31 11:10:00 2024
+# Make data base, printed on Sun Nov 10 15:54:37 2024
 
 # Variables
 
@@ -16,8 +16,6 @@ make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 ?F = $(notdir $?)
 # environment
 DESKTOP_SESSION = ubuntu
-# environment
-VSCODE_CODE_CACHE_PATH = /home/user1/.config/Code/CachedData/384ff7382de624fb94dbaf6da11977bba1ecd427
 # default
 .SHELLFLAGS := -c
 # environment
@@ -47,7 +45,7 @@ GDM_LANG = en
 # environment
 VSCODE_NLS_CONFIG = {"userLocale":"en-us","osLocale":"en","resolvedLanguage":"en","defaultMessagesFile":"/usr/share/code/resources/app/out/nls.messages.json","locale":"en-us","availableLanguages":{}}
 # environment
-JOURNAL_STREAM = 9:39362
+JOURNAL_STREAM = 9:4566463
 # environment
 XDG_CONFIG_DIRS = /etc/xdg/xdg-ubuntu:/etc/xdg
 # makefile (from 'Makefile', line 1)
@@ -87,7 +85,7 @@ XDG_MENU_PREFIX = gnome-
 # environment
 ELECTRON_RUN_AS_NODE = 1
 # environment
-INVOCATION_ID = 5234db077fd74077a6d488f81ab675e2
+INVOCATION_ID = b2d43a3c78b04d489bd6fc7837aca212
 # makefile (from 'Makefile', line 1)
 BUILD_SUBDIRS = threads userprog vm filesys
 # default
@@ -99,7 +97,7 @@ XDG_SESSION_DESKTOP = ubuntu
 # environment
 SSH_AUTH_SOCK = /run/user/1000/keyring/ssh
 # environment
-GIO_LAUNCHED_DESKTOP_FILE_PID = 270394
+GIO_LAUNCHED_DESKTOP_FILE_PID = 1172477
 # automatic
 %F = $(notdir $%)
 # environment
@@ -123,7 +121,7 @@ HOME = /home/user1
 # environment
 LESSCLOSE = /usr/bin/lesspipe %s %s
 # environment
-PrlDRIImportFD = 10
+VSCODE_CODE_CACHE_PATH = /home/user1/.config/Code/CachedData/384ff7382de624fb94dbaf6da11977bba1ecd427
 # environment
 LOGNAME = user1
 # environment
@@ -181,6 +179,8 @@ MFLAGS = -pqrR
 # makefile (from 'Makefile', line 17)
 TAGS_SOURCES = find $(TAGS_SUBDIRS) -name \*.[chS] -print
 # environment
+VSCODE_L10N_BUNDLE_LOCATION = 
+# environment
 GDK_BACKEND = x11
 # automatic
 +F = $(notdir $+)
@@ -211,9 +211,9 @@ GJS_DEBUG_OUTPUT = stderr
 # environment
 LANG = C
 # environment
-VSCODE_PID = 270394
+VSCODE_PID = 1172477
 # variable set hash-table stats:
-# Load=101/1024=10%, Rehash=0, Collisions=12/130=9%
+# Load=101/1024=10%, Rehash=0, Collisions=11/130=8%
 
 # Pattern-specific Variable Values
 
@@ -337,6 +337,6 @@ TAGS::
 # strcache performance: lookups = 50 / hit rate = 30%
 # hash-table stats:
 # Load=35/8192=0%, Rehash=0, Collisions=1/50=2%
-# Finished Make data base on Thu Oct 31 11:10:00 2024
+# Finished Make data base on Sun Nov 10 15:54:38 2024
 
  

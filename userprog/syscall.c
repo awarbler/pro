@@ -20,6 +20,7 @@ void sys_halt(void);
 void sys_exit(int status);
 int sys_write(int fd, char *buffer, unsigned size);
 int sys_read(int fd, void *buffer, unsigned size);
+int sys_open(const char *file_name);
 
 // TODO: document 
 static int get_user (const uint8_t *uaddr); // TODO: Read user memory safely
@@ -50,6 +51,7 @@ syscall_handler(struct intr_frame *f UNUSED)
         sys_exit(-1);
     }
     //printf("Callno = %d\n" , *usp);
+
     int callno = *usp;
 
     switch (callno) {
@@ -71,6 +73,16 @@ syscall_handler(struct intr_frame *f UNUSED)
         case SYS_REMOVE:    /* Delete a file. */
             break;
         case SYS_OPEN:      /* Open a file. */
+            {
+                const char *file_name = (const char *)*(usp+1);
+                if(!is_user_vaddr(file_name)){
+                    sys_exit(-1);
+                }
+                if (file_name == NULL) {
+                    sys_exit(-1);
+                }
+                f->eax = sys_open(file_name);
+            }
             break;
         case SYS_FILESIZE:  /* Obtain a file's size. */
             break;
@@ -103,7 +115,29 @@ lose some information about possible deadlock situations, etc.
 void sys_halt(void) {
     shutdown_power_off();
 }
-
+/**Opens the file called file. Returns a nonnegative integer handle called 
+ * a "file descriptor" (fd), or -1 if the file could not be opened. File 
+ * descriptors numbered 0 and 1 are reserved for the console: fd 0 (STDIN_FILENO) 
+ * is standard input, fd 1 (STDOUT_FILENO) is standard output. The open system 
+ * call will never return either of these file descriptors, which are valid as 
+ * system call arguments only as explicitly described below. Each process has
+ * an independent set of file descriptors. File descriptors are not inherited 
+ * by child processes.When a single file is opened more than once, whether by 
+ * a single process or different processes, each open returns a new file d
+ * escriptor. Different file descriptors for a single file are closed independently
+ * in separate calls to close and they do not share a file position.*/
+int sys_open(const char *file_name){
+    if(strcmp(file_name, "") == 0){
+        return -1;
+    }
+    struct file *file = filesys_open(file_name);
+    if(file == NULL) {
+        sys_exit(-1);
+    }
+    int fd = 2;
+    fd++;
+    return fd;
+}
 /* 
 Terminates the current user program, returning status to 
 the kernel. If the process's parent waits for it (see below), 
