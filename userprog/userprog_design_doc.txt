@@ -9,7 +9,7 @@
 >> Fill in the names and email addresses of your group members.
 
 Anita Woodford <awoodfor@utexas.edu>
-David Cho <email@utexas.edu>
+David Cho <dychokis@utexas.edu>
 
 ---- PRELIMINARIES ----
 
@@ -17,7 +17,11 @@ David Cho <email@utexas.edu>
 >> TAs, or extra credit, please give them here.
 >> Please cite any offline or online sources you consulted while
 >> preparing your submission, other than the Pintos documentation, course
->> text, lecture notes, and course staff.
+>> text, lecture notes, and course staff.:
+
+I used following books Introduction to Algorithms Third edition , The Design 
+and Anaylsis of Algorithms, and CSE 251 BYUI Class information on Stacks,
+threads, and FD for the setup_stack function and for code in syscall. 
 
                            ARGUMENT PASSING
                            ================
@@ -27,6 +31,11 @@ David Cho <email@utexas.edu>
 >> A1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+1. args_struct - To pass file name and arguments as a single structure to start_process
+2. Launched - Used to synchronize process execution to ensure that the parent 
+waits for the child process to load before proceeding.
+3. Exiting (semaphore) struct semaphore exiting; The purpose is to synchornize process 
+exit and wait system calls to handle temrination properly. 
 
 ---- ALGORITHMS ----
 
