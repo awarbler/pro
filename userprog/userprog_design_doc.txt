@@ -19,9 +19,13 @@ David Cho <dychokis@utexas.edu>
 >> preparing your submission, other than the Pintos documentation, course
 >> text, lecture notes, and course staff.:
 
-I used following books Introduction to Algorithms Third edition , The Design 
-and Anaylsis of Algorithms, and CSE 251 BYUI Class information on Stacks,
-threads, and FD for the setup_stack function and for code in syscall. 
+1. Introduction to Algorithms (3rd edition) for tacks,threads, and FD for 
+    the setup_stack function and for code in syscall.
+2. The Design and Anaylsis of Algorithms - stacks,threads, and FD for the 
+    setup_stack function and for code in syscall.
+3. CSE 251 BYUI Class material on Stacks,threads, and FD for the setup_stack 
+   function and for code in syscall. 
+4. Pintos documentiation and lecture notes for project implementations.
 
                            ARGUMENT PASSING
                            ================
@@ -31,11 +35,20 @@ threads, and FD for the setup_stack function and for code in syscall.
 >> A1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
-1. args_struct - To pass file name and arguments as a single structure to start_process
-2. Launched - Used to synchronize process execution to ensure that the parent 
-waits for the child process to load before proceeding.
-3. Exiting (semaphore) struct semaphore exiting; The purpose is to synchornize process 
-exit and wait system calls to handle temrination properly. 
+1. args_struct - 
+    stryct args_struct {
+        char * file_name; // stores the executable name 
+        char * file_args; // stores teh command line arguments.
+    }
+    Purpose: To pass file name and arguments as a single structure to start_process
+2. Launched 
+    struct semaphore launched;
+    Purpose: Used to synchronize process execution to ensure that the parent 
+    waits for the child process to load before proceeding.
+3. Exiting (semaphore) 
+    struct semaphore exiting; 
+    Purpose: is to synchornize process exit and wait system calls to 
+    handle temrination properly. 
 
 ---- ALGORITHMS ----
 
@@ -43,24 +56,20 @@ exit and wait system calls to handle temrination properly.
 >> you arrange for the elements of argv[] to be in the right order?
 >> How do you avoid overflowing the stack page?
 
-Right now I am arranging argv[] in the right order on the stack to arrange argv correctly I push them in reverse order.
-since the stacks grow downwards, I push arguments in reverse order. I calculate 
-stack alignment to ensure th stack is 4 bytes aligned by adding padding
-if necessary after pushing all arguments. I save the addresses of the 
-arugments. After each push I store the address back in the argv and the address will 
-later be pushed onto the stack to form the argv array. After arrangeing argv on the stack
-, i push argc and th argv pointer. so in theory I tried to iterate over the 
-arguements in reverse, push each one, align the stack, then push argc, argv and a null
-null return address. 
-
-To avoid overlow in the stack, I limited the number of arguments, by implementing argv to 128, this 
-ensures there is enough space without crossing page boundaries. I  monitor the stack 
-size by always checking the space used by aruments to avoid overflowing. In 
-pintos this ahppens within a single page for the stack. 
+We parsed the command line using strtok_r(), which tokenizes the input string.
+The elements of argv[] are pushed onto the stack in reverse order because the
+stack grows downwards. We ensure stack alignment to 4 bytes by adding padding
+if necessary. We use a maximum of 128 arguments (argv[128]) to prevent stack 
+overflows. 
+To avoid overflow we limited the number of arguments to fit within a single page 
+and we check the remaining stack space while pushing arguments. 
 
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
+Pintos implements strtok_r because is is a reentrant version of strtok which is 
+safer in a mult thread environment. Sttrok uses a shared internal state making it 
+unsafe to use multiple threads or processes concurrently. 
 
                              SYSTEM CALLS
                              ============
