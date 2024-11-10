@@ -40,15 +40,15 @@ David Cho <dychokis@utexas.edu>
         char * file_name; // stores the executable name 
         char * file_args; // stores teh command line arguments.
     }
-    Purpose: To pass file name and arguments as a single structure to start_process
-2. Launched 
+    Purpose: To pass a file name and arguments as a single structure to start_process
+2. launched (semaphore): 
     struct semaphore launched;
-    Purpose: Used to synchronize process execution to ensure that the parent 
-    waits for the child process to load before proceeding.
+    Purpose: this is used to synchronize process execution to ensure that the 
+    parent waits for the child process to load before proceeding.
 3. Exiting (semaphore) 
     struct semaphore exiting; 
-    Purpose: is to synchornize process exit and wait system calls to 
-    handle temrination properly. 
+    Purpose: this semaphore is used to synchornize process exit and wait 
+    system calls to handle temrination properly. 
 
 ---- ALGORITHMS ----
 
@@ -57,19 +57,19 @@ David Cho <dychokis@utexas.edu>
 >> How do you avoid overflowing the stack page?
 
 We parsed the command line using strtok_r(), which tokenizes the input string.
-The elements of argv[] are pushed onto the stack in reverse order because the
+The elements of argv[] are pushed back onto the stack in reverse order because the
 stack grows downwards. We ensure stack alignment to 4 bytes by adding padding
 if necessary. We use a maximum of 128 arguments (argv[128]) to prevent stack 
 overflows. 
-To avoid overflow we limited the number of arguments to fit within a single page 
-and we check the remaining stack space while pushing arguments. 
+To avoid stack overflow we limited the number of arguments to fit within a single 
+page (4kb)and we check the remaining stack space while pushing arguments. 
 
 ---- RATIONALE ----
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
-Pintos implements strtok_r because is is a reentrant version of strtok which is 
-safer in a mult thread environment. Sttrok uses a shared internal state making it 
-unsafe to use multiple threads or processes concurrently. 
+Pintos implements strtok_r because is is a reentrant version of strtok 
+which is safer for a multithreaded environment. Sttrok uses a shared internal 
+state making it unsafe to use multiple threads or processes concurrently. 
 
                              SYSTEM CALLS
                              ============
@@ -79,15 +79,28 @@ unsafe to use multiple threads or processes concurrently.
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
+1. launched and exiting (semaphores): This synchronizes process between
+   parent and child during laoding and termination.
+2. fd_counter(global integer): This tracks the next available file 
+    descriptor for the sys open function. 
+3. file_descriptor_table(per process array): Maps the file descriptors to 
+    open file pointers for each process. 
 
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
+File descriptors are unique within each process. They start from 2, 
+as 0 and 1 are reserved for stdin_fileno and stdout_fileno. Each process has
+its own file descriptor table, preventing conflicts between processes. 
 
 ---- ALGORITHMS ----
 
 >> B3: Describe your code for reading and writing user data from the
 >> kernel.
+At the moment we are using get_user and put_user functions to safely
+read and write to user memory. These functions use inline assembly along
+with exception handling to identify and manage invalid memory access. This
+process helps to prevent kernal crashes. 
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -95,9 +108,22 @@ unsafe to use multiple threads or processes concurrently.
 >> (e.g. calls to pagedir_get_page()) that might result?  What about
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
+If we are copying a full page of memory, we will need to make at least one 
+call to pagedir_get_page(), provided that the entire page is mapped. The
+maximum number of calls can reach up to 4096 if the copying frequently 
+crosses page boundaries, as a separate call is needed for each byte. 
+For smaller 2 byte copy, the minmimum remains one call, whuile the max is
+two. Checking the mapping for larger memory blocks at once will 
+enhance the efficiency. 
+
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
+The wait function uses our exiting sempahore for synchronization. The 
+parent process will block this semaphore until the child process calls
+sema_up in the process exit function. This will ensure that the  parent 
+waits for the child to terminate and allows the parent to 
+retrieve the childs exit status. 
 
 >> B6: Any access to user program memory at a user-specified address
 >> can fail due to a bad pointer value.  Such accesses must cause the
@@ -119,6 +145,9 @@ unsafe to use multiple threads or processes concurrently.
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
+The exec() function utilizes the launched semaphore. The parent process waits 
+until the child process is finished loading. The success or failure status 
+is returned through a shared thread structure. 
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -126,17 +155,33 @@ unsafe to use multiple threads or processes concurrently.
 >> that all resources are freed in each case?  How about when P
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
+To use wait() we employ the exiting semaphore to synchorinze the parent and child
+process. If the parent calls wait() before the child exits, it blocks the semaphore.
+Same if the child exits first, it signals the semaphore allowing the parent to proceed.
+All resources are freed, which prevents a memory leak and ensures consistent behavior. 
+
 
 ---- RATIONALE ----
 
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
+We selected inline assembly using get user and put user for improved efficiency and 
+precise exception handling. This will prevent crashes andd allow safe access to user
+memory without requring significant modifications to the kernel.
+
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
-
+File descriptors are isolated within each process, reducing the risk of 
+accidental conflicts. 
+The design is simple and follows unix like behavior. 
+disadvantages: aintaining a separate file descriptor table for each 
+process may increase memory usage.
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
+We kept the default mapping for simplicity. If we implement a separate mapping it
+will allow more control over process identifiers but would require additional
+synchorinzation and lookup mechanisms. 
 
                            SURVEY QUESTIONS
                            ================
