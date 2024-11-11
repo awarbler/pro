@@ -174,15 +174,13 @@ memory without requring significant modifications to the kernel.
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
-File descriptors are isolated within each process, reducing the risk of 
-accidental conflicts. 
-The design is simple and follows unix like behavior. 
-disadvantages: aintaining a separate file descriptor table for each 
-process may increase memory usage.
->> B11: The default tid_t to pid_t mapping is the identity mapping.
->> If you changed it, what advantages are there to your approach?
 Our design for file descriptors is not yet complete as we would like
 to implement a file descriptor table.
+>> B11: The default tid_t to pid_t mapping is the identity mapping.
+>> If you changed it, what advantages are there to your approach?
+We kept the default mapping for simplicity. If we implement a separate mapping it
+will allow more control over process identifiers but would require additional
+synchorinzation and lookup mechanisms. 
 
                            SURVEY QUESTIONS
                            ================
