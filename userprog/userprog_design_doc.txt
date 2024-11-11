@@ -8,7 +8,7 @@
 
 >> Fill in the names and email addresses of your group members.
 
-Anita J. Woodford <awoodfor@utexas.edu> ajw 4987
+Anita J. Woodford <awoodfor@utexas.edu>
 David Cho <dychokis@utexas.edu>
 
 ---- PRELIMINARIES ----
