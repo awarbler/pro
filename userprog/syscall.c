@@ -13,6 +13,8 @@
 #include "threads/vaddr.h"
 // TODO: adocument Page directory access 
 #include "userprog/pagedir.h"
+// For using filesys commands (e.g., filesys_open)
+#include <filesys/filesys.h>
 
 // TODO: document Function prototypes for system calls
 static void syscall_handler(struct intr_frame *);
