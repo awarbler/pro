@@ -26,6 +26,11 @@
 
 #include <log.h>
 
+//file structs for stdin, stdout, and stderr
+static struct file stdin_file;
+static struct file stdout_file;
+static struct file stderr_file;
+
 struct args_struct { // TODO : added struct David 
     char *file_name;
     char *file_args;
@@ -33,6 +38,8 @@ struct args_struct { // TODO : added struct David
 
 static thread_func start_process NO_RETURN;
 static bool load(char *file_name_ptr, char *file_args, void(**eip) (void), void **esp);
+
+int fd_alloc(struct file *file);
 
 struct semaphore launched;
 struct semaphore exiting;
@@ -279,6 +286,33 @@ load(char *file_name_ptr, char *file_args, void(**eip) (void), void **esp) // ch
     int i;
     char *file_name; // TODO: Dcocumentation args.c testcheck to see if I keep this
 
+    //Initialize stdin file struct (fd 0)
+    stdin_file.inode = NULL;        //No actual inode
+    stdin_file.pos = 0;             //Unused
+    stdin_file.deny_write = false;  //Unused
+
+    // Initialize stdout file struct (fd 1)
+    stdout_file.inode = NULL;       //No actual inode
+    stdout_file.pos = 0;            //Unused
+    stdout_file.deny_write = false; //False for stdout
+
+    // Initialize stderr file struct (fd 2)
+    stderr_file.inode = NULL;        //No actual inode
+    stderr_file.pos = 0;             //Unused
+    stderr_file.deny_write = false;  //False for stderr
+
+    //initialize fdtable for created thread
+    t->fd_table = palloc_get_page(0);
+    if(t->fd_table == NULL){
+        printf("Error: Memory allocation for fd_table failed\n");
+        thread_exit();
+    }
+    memset(t->fd_table->entries, 0, sizeof(t->fd_table->entries));
+    t->fd_table->entries[0] = &stdin_file;
+    t->fd_table->entries[1] = &stdout_file;
+    t->fd_table->entries[2] = &stderr_file;
+    t->next_fd = 3; //Start after stdin/out/err
+
     /* Allocate and activate page directory. */
     t->pagedir = pagedir_create();
     if (t->pagedir == NULL) {
@@ -519,17 +553,7 @@ setup_stack(const char *file_name, char *args, void **esp)
     if (kpage != NULL) {
         success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
         if (success) {
-            *esp = PHYS_BASE;
-            // char *cmd_copy = palloc_get_page(0);
-            // if(cmd_copy == NULL){
-            //     return false;
-            // }
-            // strlcpy(cmd_copy, cmdstring, PGSIZE);
-            // for(token = strtok_r(cmd_copy, " ", &save_ptr);
-            //     token != NULL;
-            //     token = strtok_r(NULL, " ", &save_ptr)){
-            //         argv[argc++] = token;
-            //     }           
+            *esp = PHYS_BASE;         
             argc = 0;
             arg = file_name;
             // printf("From setup_stack, filename is %s; args are %s\n", file_name, args);
@@ -543,11 +567,6 @@ setup_stack(const char *file_name, char *args, void **esp)
                 arg = args != NULL ? strtok_r(NULL, " ", &args) : NULL;//Get next token
             }
             argv[i] = NULL;
-            // arg = args != NULL ? strtok_r(NULL, " ", &cmd_copy) : NULL;
-            // while(arg != NULL){
-            //     len = strlen(arg) + 1;
-            //     arg = args != NULL ? strtok_r(NULL, " ", &cmd_copy)
-            // }
             // printf("argc = %d\n", argc);
             
             //Push arguments onto the stack in reverse order
@@ -611,4 +630,23 @@ install_page(void *upage, void *kpage, bool writable)
      * address, then map our page there. */
     return pagedir_get_page(t->pagedir, upage) == NULL
            && pagedir_set_page(t->pagedir, upage, kpage, writable);
+}
+
+/*Assigns next available file descriptor to passed file*/
+int fd_alloc(struct file *file) {
+    struct thread *t = thread_current();
+    if(t->fd_table == NULL){
+        thread_exit();
+    }
+    // file_length(file);
+    // printf("fd_alloc: file length shows as %lld\n", (long long)file_length(file));
+    for (int i = 3; i < MAX_OPEN_FILES; i++) {  //Start after 0, 1, 2 (stdin, stdout, stderr)
+        if (t->fd_table->entries[i] == NULL) {
+            t->fd_table->entries[i] = file;
+            t->next_fd = i + 1; //Start after stdin/out/err
+            return i;//Return the file descriptor number
+        }
+    }
+
+    return -1;//No available file descriptor
 }
