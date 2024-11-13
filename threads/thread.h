@@ -23,6 +23,14 @@ typedef int tid_t;
 #define PRI_DEFAULT 31 /* Default priority. */
 #define PRI_MAX     63 /* Highest priority. */
 
+//Defining maximum number of open files
+#define MAX_OPEN_FILES 128
+
+//Define a structure for file descriptor table
+struct fdtable{
+    struct file *entries[MAX_OPEN_FILES];
+};
+
 /* A kernel thread or user process.
  *
  * Each thread structure is stored in its own 4 kB page.  The
@@ -87,6 +95,8 @@ struct thread {
     uint8_t           *stack;    /* Saved stack pointer. */
     int                priority; /* Priority. */
     struct list_elem   allelem;  /* List element for all threads list. */
+    struct fdtable *fd_table;    /* File descriptor table. */
+    int next_fd;                 /* Next file descriptor to allocate. */
 
     /* Shared between thread.c and synch.c. */
     struct list_elem elem; /* List element. */

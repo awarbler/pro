@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <syscall-nr.h>
+#include <string.h>
 
 #include "threads/interrupt.h"
 #include "threads/thread.h"
@@ -15,14 +16,19 @@
 #include "userprog/pagedir.h"
 // For using filesys commands (e.g., filesys_open)
 #include <filesys/filesys.h>
+#include <filesys/file.h>
+// For using functions created for fdtable implementation
+#include <userprog/process.h>
 
 // TODO: document Function prototypes for system calls
 static void syscall_handler(struct intr_frame *);
 void sys_halt(void);
 void sys_exit(int status);
-int sys_write(int fd, char *buffer, unsigned size);
-int sys_read(int fd, void *buffer, unsigned size);
+bool sys_create(const char *file_name, off_t initial_size);
 int sys_open(const char *file_name);
+int sys_filesize(int fd);
+int sys_write(int fd, const void *buffer, unsigned size);
+int sys_read(int fd, void *buffer, unsigned size);
 
 // TODO: document 
 static int get_user (const uint8_t *uaddr); // TODO: Read user memory safely
@@ -71,6 +77,7 @@ syscall_handler(struct intr_frame *f UNUSED)
         case SYS_WAIT:      /* Wait for a child process to die. */
             break;
         case SYS_CREATE:    /* Create a file. */
+	    f->eax = sys_create((const char*) *(usp+1), (off_t)*(usp+2));
             break;
         case SYS_REMOVE:    /* Delete a file. */
             break;
@@ -87,12 +94,13 @@ syscall_handler(struct intr_frame *f UNUSED)
             }
             break;
         case SYS_FILESIZE:  /* Obtain a file's size. */
+	    f->eax = sys_filesize(*(usp+1));
             break;
         case SYS_READ:      /* Read from a file. */ 
             f ->eax = sys_read(*(usp+1), (void*)*(usp+2), *(usp+3));
             break;
         case SYS_WRITE:     /* Write to a file. */
-            f->eax = sys_write(*(usp+1), (char*)*(usp+2), *(usp+3));   
+            f->eax = sys_write(*(usp+1), (const void*)*(usp+2), *(usp+3));   
             break;
         case SYS_SEEK:      /* Change position in a file. */
             break;
@@ -129,16 +137,28 @@ void sys_halt(void) {
  * escriptor. Different file descriptors for a single file are closed independently
  * in separate calls to close and they do not share a file position.*/
 int sys_open(const char *file_name){
+    if(pagedir_get_page(thread_current()->pagedir, file_name) == NULL)
+    {
+        sys_exit(-1);//Exit status if pointer is invalid ===validate arguments
+    }
+
     if(strcmp(file_name, "") == 0){
         return -1;
     }
     struct file *file = filesys_open(file_name);
     if(file == NULL) {
-        sys_exit(-1);
+        return -1;
     }
-    int fd = 2;
-    fd++;
-    return fd;
+    file_length(file);
+    // printf("sys_open: file length shows as %lld\n", (long long)file_length(file));
+    // printf("file size is: %lld\n", (long long)file->inode->data.length);
+    int fd = fd_alloc(file);
+    if(fd == -1){
+        file_close(file);
+        return -1;
+    }
+    // printf("sys_open: returning fd %d\n", fd);
+    return fd;  //Return allocated fd to user
 }
 /* 
 Terminates the current user program, returning status to 
@@ -155,6 +175,41 @@ void sys_exit(int status){
     // where do we get args-none m where do we find the name every process has to have a name 
     thread_exit(); // Terminate the thread 
     //process_exit();
+}
+
+/*Creates a new file called file initially initial_size bytes in size. 
+Returns true if successful, false otherwise. Creating a new file does not open it:
+opening the new file is a separate operation which would require a open system call.*/
+bool sys_create(const char *file_name, off_t initial_size){
+    if(pagedir_get_page(thread_current()->pagedir, file_name) == NULL)
+    {
+        sys_exit(-1);
+    }
+    if(filesys_create(file_name, initial_size) == 1){
+        return 1;
+    }
+    else{
+        return 0;
+    }
+}
+
+/*Returns the size, in bytes, of the file open as fd.*/
+int sys_filesize(int fd){
+    //Get current thread/process
+    struct thread *t = thread_current();
+    
+    //Validate file descriptor range
+    if (fd < 3 || fd >= t->next_fd) {
+        return -1;  //Invliad file descriptor
+        printf("Error: invalid fd\n");
+    }
+
+    //Get file struct from the fdtable using fd
+    struct file *file = t->fd_table->entries[fd];
+    if (file == NULL) {
+        return -1;  //File descriptor not associated with an open file
+    }
+    return (int)file_length(file);
 }
 
 /*  Writes size bytes from buffer to the open file fd. Returns 
@@ -175,23 +230,45 @@ void sys_exit(int status){
     interleaved on the console, confusing both human readers and 
     our grading scripts.
 */
-int sys_write(int fd, char *buffer, unsigned size) {
+int sys_write(int fd, const void *buffer, unsigned size) {
     // Validate buffer address range within user address space 
     if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL 
     || !is_user_vaddr(buffer + size) ||   pagedir_get_page(thread_current()->pagedir, buffer + size) == NULL)
     {
-        sys_exit(-1); // Exit status if pointer is invalid ===validate arguments
+        sys_exit(-1);
     }
 
     // stdout == fd ==1 fd 1 wries to buffer 
     if (fd == 1) { // Writing to console (stdout)
 
         // write to the console
-        putbuf(buffer, size); // output buffer content to console 
+        putbuf((const char *)buffer, size); // output buffer content to console 
         return size; // Return number of bytes written ---not sure if I want to do this confirm 
     }
-    return -1; // for now, return -1 for unsupported file descriptors 
+    
+    //Get the current thread/process
+    struct thread *t = thread_current();
+
+    //Validate file descriptor range
+    if (fd < 2 || fd >= t->next_fd || t->fd_table == NULL){
+        sys_exit(-1);  //Invalid file descriptor
+    }
+
+    struct file *file = t->fd_table->entries[fd];
+
+    // Retrieve file struct from the fdtable using fd
+    if (file == NULL) {
+        return -1;  //File descriptor not associated with an open file
+    }
+
+    int bytes_written = file_write(file, buffer, (off_t) size);
+    if(bytes_written == -1){//error handling
+        return -1;
+    }
+
+    return bytes_written;
 }
+
 // Reads size bytes from the file open as fd into buffer. 
 // Returns the number of bytes actually read (0 at end of file), 
 // or -1 if the file could not be read (due to a condition other
@@ -212,7 +289,31 @@ int sys_read(int fd, void *buffer, unsigned size) {
         }
         return size; // returns the number of bytes to read
     }
-    return -1; // Return -1 for unsupported file descriptors 
+
+    //Get the current thread/process
+    struct thread *t = thread_current();
+
+    // printf("FD is %d\n", fd);
+    // Validate file descriptor range
+    if (fd < 3 || fd >= t->next_fd) {
+        return -1;  //Invalid file descriptor
+        printf("Error: invalid fd\n");
+    }
+
+    //Get file struct from the fdtable using fd
+    struct file *file = t->fd_table->entries[fd];
+    if (file == NULL) {
+        return -1;  //File descriptor not associated with an open file
+    }
+    file_length(file);
+    // printf("sys_read(): file length shows as %lld\n", (long long)file_length(file));
+
+    int bytes_read = file_read(file, buffer, size);
+    if(bytes_read == -1){
+        return -1;
+    }
+
+    return bytes_read;
 }
     
 /* System Call: pid_t exec (const char *cmd_line) Runs the executable whose name is given in cmd_line, passing any given arguments, and returns the new process's program id (pid). Must return pid -1, which otherwise should not be a valid pid, if the program cannot load or run for any reason. Thus, the parent process cannot return from the exec until it knows whether the child process successfully loaded its executable. You must use appropriate synchronization to ensure this.
