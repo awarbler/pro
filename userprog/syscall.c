@@ -29,6 +29,7 @@ int sys_open(const char *file_name);
 int sys_filesize(int fd);
 int sys_write(int fd, const void *buffer, unsigned size);
 int sys_read(int fd, void *buffer, unsigned size);
+void sys_seek(int fd, unsigned position);
 
 // TODO: document 
 static int get_user (const uint8_t *uaddr); // TODO: Read user memory safely
@@ -103,6 +104,10 @@ syscall_handler(struct intr_frame *f UNUSED)
             f->eax = sys_write(*(usp+1), (const void*)*(usp+2), *(usp+3));   
             break;
         case SYS_SEEK:      /* Change position in a file. */
+            if (!is_user_vaddr(usp + 1) || !is_user_vaddr(usp + 2)) {
+                sys_exit(-1); // Invalid memory access
+            }
+            sys_seek(*(usp + 1), *(usp + 2));
             break;
         case SYS_TELL:      /* Report current position in a file. */
             break;
@@ -316,6 +321,25 @@ int sys_read(int fd, void *buffer, unsigned size) {
     return bytes_read;
 }
     
+
+
+void sys_seek(int fd, unsigned position) {
+    struct thread *t = thread_current();
+
+    // Validate file descriptor range
+    if (fd < 3 || fd >= t->next_fd || t->fd_table == NULL) {
+        sys_exit(-1);  // Invalid file descriptor
+    }
+
+    // Retrieve the file struct from the fd_table
+    struct file *file = t->fd_table->entries[fd];
+    if (file == NULL) {
+        sys_exit(-1);  // File descriptor not associated with an open file
+    }
+
+    // Seek to the specified position
+    file_seek(file, position);
+}
 /* System Call: pid_t exec (const char *cmd_line) Runs the executable whose name is given in cmd_line, passing any given arguments, and returns the new process's program id (pid). Must return pid -1, which otherwise should not be a valid pid, if the program cannot load or run for any reason. Thus, the parent process cannot return from the exec until it knows whether the child process successfully loaded its executable. You must use appropriate synchronization to ensure this.
 
 System Call: int wait (pid_t pid) Waits for a child process pid and retrieves the child's exit status. If pid is still alive, waits until it terminates. Then, returns the status that pid passed to exit. If pid did not call exit(), but was terminated by the kernel (e.g. killed due to an exception), wait(pid) must return -1. It is perfectly legal for a parent process to wait for child processes that have already terminated by the time the parent calls wait, but the kernel must still allow the parent to retrieve its child's exit status, or learn that the child was terminated by the kernel.
