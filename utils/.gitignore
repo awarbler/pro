@@ -3,3 +3,9 @@ squish-pty
 squish-unix
 
 .vscode
+dryrun.log
+launch.json
+settings.json
+targets.log
+configurationCache.log
+c_cpp_properties.json
