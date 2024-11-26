@@ -31,7 +31,7 @@ int sys_write(int fd, const void *buffer, unsigned size);
 int sys_read(int fd, void *buffer, unsigned size);
 void sys_seek(int fd, unsigned position);
 bool sys_remove (const char *file_name);
-
+tid_t exec (const char *cmd_line);
 // TODO: document 
 static int get_user (const uint8_t *uaddr); // TODO: Read user memory safely
 static bool put_user (uint8_t *udst, uint8_t byte); // TODO: Wriet user memory safely
@@ -41,9 +41,12 @@ static bool put_user (uint8_t *udst, uint8_t byte); // TODO: Wriet user memory s
 // function to extract system call arguments from the stack 
 // static int fetch_arguement(void *esp, int arg_index);
 
+
+
 void
 syscall_init(void)
 {
+
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -78,7 +81,7 @@ syscall_handler(struct intr_frame *f UNUSED)
         case SYS_WAIT:      /* Wait for a child process to die. */
             break;
         case SYS_CREATE:    /* Create a file. */
-	    f->eax = sys_create((const char*) *(usp+1), (off_t)*(usp+2));
+	        f->eax = sys_create((const char*) *(usp+1), (off_t)*(usp+2));
             break;
         case SYS_REMOVE:    /* Delete a file. */
             {
@@ -92,7 +95,6 @@ syscall_handler(struct intr_frame *f UNUSED)
                 f->eax = sys_remove(file_name);
 
             }
-
             break;
         case SYS_OPEN:      /* Open a file. */
             {
@@ -107,7 +109,7 @@ syscall_handler(struct intr_frame *f UNUSED)
             }
             break;
         case SYS_FILESIZE:  /* Obtain a file's size. */
-	    f->eax = sys_filesize(*(usp+1));
+	        f->eax = sys_filesize(*(usp+1));
             break;
         case SYS_READ:      /* Read from a file. */ 
             f ->eax = sys_read(*(usp+1), (void*)*(usp+2), *(usp+3));
@@ -193,7 +195,6 @@ void sys_exit(int status){
     thread_exit(); // Terminate the thread 
     //process_exit();
 }
-
 /*Creates a new file called file initially initial_size bytes in size. 
 Returns true if successful, false otherwise. Creating a new file does not open it:
 opening the new file is a separate operation which would require a open system call.*/
@@ -209,7 +210,6 @@ bool sys_create(const char *file_name, off_t initial_size){
         return 0;
     }
 }
-
 /*Returns the size, in bytes, of the file open as fd.*/
 int sys_filesize(int fd){
     //Get current thread/process
@@ -228,7 +228,6 @@ int sys_filesize(int fd){
     }
     return (int)file_length(file);
 }
-
 /*  Writes size bytes from buffer to the open file fd. Returns 
     the number of bytes actually written, which may be less than
     size if some bytes could not be written. 
@@ -285,14 +284,13 @@ int sys_write(int fd, const void *buffer, unsigned size) {
 
     return bytes_written;
 }
-
 // Reads size bytes from the file open as fd into buffer. 
 // Returns the number of bytes actually read (0 at end of file), 
 // or -1 if the file could not be read (due to a condition other
 // than end of file). Fd 0 reads from the keyboard using input_getc().
 int sys_read(int fd, void *buffer, unsigned size) {
     if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL 
-    || !is_user_vaddr(buffer + size) ||   pagedir_get_page(thread_current()->pagedir, buffer + size) == NULL)
+    || !is_user_vaddr(buffer + size) || pagedir_get_page(thread_current()->pagedir, buffer + size) == NULL)
     {
         sys_exit(-1); // validate arguments
     }
@@ -332,9 +330,33 @@ int sys_read(int fd, void *buffer, unsigned size) {
 
     return bytes_read;
 }
-    
+tid_t exec (const char *cmd_line) {
+    if (!is_user_vaddr(cmd_line) || pagedir_get_page(thread_current()->pagedir, cmd_line) == NULL)
+    {
+        sys_exit(-1); // validate arguments
+    }
+    // copy cmd_line to kernel space
+    char *cmd_copy = palloc_get_page(0);
+    if (cmd_copy == NULL) {
+        return -1;
+    }
 
+    strlcpy(cmd_copy, cmd_line, PGSIZE);
 
+    // Call process_execute 
+    tid_t tid = process_execute(cmd_line);
+
+    // free cmd_copy after process_execute 
+    palloc_free_page(cmd_copy);
+
+    if (tid == TID_ERROR) {
+        return -1;
+    }
+    return tid;
+}
+int wait(tid_t tid) {
+    return process_wait(tid);
+}
 /* bool remove (const char *file) Deletes the file called file. 
 Returns true if successful, false otherwise. A file may be removed 
 regardless of whether it is open or closed, and removing an open 

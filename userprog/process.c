@@ -70,10 +70,12 @@ process_execute(const char *cmd)
         return TID_ERROR;
     }
     strlcpy(cmd_copy, cmd, PGSIZE);
+
     // TODO : args.c test put into documentation 
     // Parse the string and tokenize it using strtok_r to break the command line into individual words
     //file_name = strtok_r(cmd_copy, " ", &save_ptr); 
     //printf("From process execute, cmd_copy = %s\n", cmd_copy);
+    
     args.file_name = strtok_r(cmd_copy, " ", &args.file_args);
     //char *token, *save_ptr;
     //token = strtok_r(cmd_copy, " ", &save_ptr);
@@ -92,6 +94,9 @@ process_execute(const char *cmd)
         return tid;
     }
     sema_down(&launched);
+
+    // if the child thread failed to load
+    
     // Free cmd_cpy here after the thread is created
     palloc_free_page(cmd_copy);
     return tid;
@@ -667,3 +672,5 @@ int fd_alloc(struct file *file) {
 
     return -1;//No available file descriptor
 }
+
+
