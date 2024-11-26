@@ -89,6 +89,7 @@ process_execute(const char *cmd)
     tid = thread_create(args.file_name, PRI_DEFAULT, start_process, &args);
     if (tid == TID_ERROR) {
         palloc_free_page(cmd_copy); // Free the allocated page if thread creation fails
+        return tid;
     }
     sema_down(&launched);
     return tid;
@@ -122,6 +123,7 @@ start_process(void *args_ptr)
     /* If load failed, quit. */
     //palloc_free_page(cmd); // TODO confirm we made all changes in load 
     if (!success) {
+        sema_up(&launched);
         thread_exit();
     }
     sema_up(&launched);
@@ -559,12 +561,18 @@ setup_stack(const char *file_name, char *args, void **esp)
             // printf("From setup_stack, filename is %s; args are %s\n", file_name, args);
             i = 0;
             while(arg != NULL){
-                len = strlen(arg) + 1;
-                argv[i] = arg;
+                len = strlen(arg) + 1; //  INcludes null terminator 
+                // argv[i] = arg; testing 
+                *esp -= len;
+                memcpy(*esp, arg, len); // copy argument to stack
+                argv[i] = *esp;
                 // printf("tokenizing %d'th arg: %s\n", i, arg);
+                //i++; // moved testing 
+                //argc++; moved testing 
+                //arg = args != NULL ? strtok_r(NULL, " ", &args) : NULL;//Get next token
+                arg = strtok_r(NULL, " ", &args);
                 i++;
                 argc++;
-                arg = args != NULL ? strtok_r(NULL, " ", &args) : NULL;//Get next token
             }
             argv[i] = NULL;
             // printf("argc = %d\n", argc);

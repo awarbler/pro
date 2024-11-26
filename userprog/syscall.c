@@ -30,6 +30,7 @@ int sys_filesize(int fd);
 int sys_write(int fd, const void *buffer, unsigned size);
 int sys_read(int fd, void *buffer, unsigned size);
 void sys_seek(int fd, unsigned position);
+bool sys_remove (const char *file_name);
 
 // TODO: document 
 static int get_user (const uint8_t *uaddr); // TODO: Read user memory safely
@@ -50,15 +51,14 @@ syscall_init(void)
 static void
 syscall_handler(struct intr_frame *f UNUSED)
 {
-    
-    
     /* Remove these when implementing syscalls */
     int * usp = f->esp;
- 
     // TODO document Validate user pointer to avoid accessing invalid memory 
     if (!is_user_vaddr(usp) || pagedir_get_page(thread_current()->pagedir,usp) == NULL) {
         sys_exit(-1);
     }
+
+    
     //printf("Callno = %d\n" , *usp);
 
     int callno = *usp;
@@ -81,6 +81,18 @@ syscall_handler(struct intr_frame *f UNUSED)
 	    f->eax = sys_create((const char*) *(usp+1), (off_t)*(usp+2));
             break;
         case SYS_REMOVE:    /* Delete a file. */
+            {
+                const char *file_name = (const char *) *(usp + 1);
+                // validate the file name pointer 
+                if (file_name == NULL || !is_user_vaddr(file_name) 
+                    || pagedir_get_page(thread_current()->pagedir,usp) == NULL) {
+                        sys_exit(-1);
+                    }
+                // call sys_remove and store the result in eax
+                f->eax = sys_remove(file_name);
+
+            }
+
             break;
         case SYS_OPEN:      /* Open a file. */
             {
@@ -323,6 +335,13 @@ int sys_read(int fd, void *buffer, unsigned size) {
     
 
 
+/* bool remove (const char *file) Deletes the file called file. 
+Returns true if successful, false otherwise. A file may be removed 
+regardless of whether it is open or closed, and removing an open 
+file does not close it. See Removing an Open File, for details.*/
+bool sys_remove (const char *file_name) {
+    return filesys_remove(file_name);
+}
 void sys_seek(int fd, unsigned position) {
     struct thread *t = thread_current();
 
@@ -352,7 +371,7 @@ Implementing this system call requires considerably more work than any of the re
 
 System Call: bool create (const char *file, unsigned initial_size) Creates a new file called file initially initial_size bytes in size. Returns true if successful, false otherwise. Creating a new file does not open it: opening the new file is a separate operation which would require a open system call.
 
-System Call: bool remove (const char *file) Deletes the file called file. Returns true if successful, false otherwise. A file may be removed regardless of whether it is open or closed, and removing an open file does not close it. See Removing an Open File, for details.
+System Call: 
 
 System Call: int open (const char *file) Opens the file called file. Returns a nonnegative integer handle called a "file descriptor" (fd), or -1 if the file could not be opened.
 File descriptors numbered 0 and 1 are reserved for the console: fd 0 (STDIN_FILENO) is standard input, fd 1 (STDOUT_FILENO) is standard output. The open system call will never return either of these file descriptors, which are valid as system call arguments only as explicitly described below.
@@ -378,27 +397,23 @@ If a system call is passed an invalid argument, acceptable options include retur
 See section 3.5.2 System Call Details, for details on how system calls work.
 
 */
-/* Reads a byte at user virtual address UADDR.
-   UADDR must be below PHYS_BASE.
-   Returns the byte value if successful, -1 if a segfault
-   occurred. */
+/* Reads a byte at user virtual address UADDR. UADDR must be below PHYS_BASE. Returns the byte value if successful, -1 if a segfault occurred. */
 static int
 get_user (const uint8_t *uaddr)
 {
-  int result;
-  asm ("movl $1f, %0; movzbl %1, %0; 1:"
-       : "=&a" (result) : "m" (*uaddr));
-  return result;
+    if (!is_user_vaddr(uaddr) || pagedir_get_page(thread_current()->pagedir,uaddr) == NULL) {
+        sys_exit(-1);
+    }
+    int result;
+    asm ("movl $1f, %0; movzbl %1, %0; 1:": "=&a" (result) : "m" (*uaddr));
+    return result;
 }
- 
-/* Writes BYTE to user address UDST.
-   UDST must be below PHYS_BASE.
-   Returns true if successful, false if a segfault occurred. */
+
+/* Writes BYTE to user address UDST. UDST must be below PHYS_BASE. Returns true if successful, false if a segfault occurred. */
 static bool
 put_user (uint8_t *udst, uint8_t byte)
 {
-  int error_code;
-  asm ("movl $1f, %0; movb %b2, %1; 1:"
-       : "=&a" (error_code), "=m" (*udst) : "q" (byte));
-  return error_code != -1;
+    int error_code;
+    asm ("movl $1f, %0; movb %b2, %1; 1:": "=&a" (error_code), "=m" (*udst) : "q" (byte));
+    return error_code != -1;
 }
