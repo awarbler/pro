@@ -92,6 +92,8 @@ process_execute(const char *cmd)
         return tid;
     }
     sema_down(&launched);
+    // Free cmd_cpy here after the thread is created
+    palloc_free_page(cmd_copy);
     return tid;
 }
 
@@ -560,17 +562,24 @@ setup_stack(const char *file_name, char *args, void **esp)
             arg = file_name;
             // printf("From setup_stack, filename is %s; args are %s\n", file_name, args);
             i = 0;
-            while(arg != NULL){
+            while (arg != NULL){
                 len = strlen(arg) + 1; //  INcludes null terminator 
-                // argv[i] = arg; testing 
+                // argv[i] = arg; testing moved this to test 
                 *esp -= len;
                 memcpy(*esp, arg, len); // copy argument to stack
                 argv[i] = *esp;
-                // printf("tokenizing %d'th arg: %s\n", i, arg);
+                // printf("tokenizing %d'th arg: %s\n", i, arg); 
                 //i++; // moved testing 
                 //argc++; moved testing 
                 //arg = args != NULL ? strtok_r(NULL, " ", &args) : NULL;//Get next token
-                arg = strtok_r(NULL, " ", &args);
+                //  cpde validation 
+                // Get the next token only if args is not NULL
+                if (args != NULL) {
+                    arg = strtok_r(NULL, " ", &args);
+                } else {
+                    arg = NULL;
+                }
+                // arg = strtok_r(NULL, " ", &args); //  added if statement for validation 
                 i++;
                 argc++;
             }
