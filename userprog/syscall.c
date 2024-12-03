@@ -34,18 +34,15 @@ tid_t sys_exec (const char *cmd_line);
 int sys_wait(tid_t tid);
 static int get_user (const uint8_t *uaddr); // TODO: Read user memory safely
 static bool put_user (uint8_t *udst, uint8_t byte); // TODO: Wriet user memory safely
-
+static void validate_user_pointer(const void *ptr) ;
 
 //  TODO: confirm we want to do the following 
 // function to extract system call arguments from the stack 
 // static int fetch_arguement(void *esp, int arg_index);
 
-
-
 void 
 syscall_init(void) 
 {
-
     intr_register_int(0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
@@ -56,13 +53,9 @@ syscall_handler(struct intr_frame *f UNUSED)
     /* Remove these when implementing syscalls */
     int * usp = f->esp;
     // TODO document Validate user pointer to avoid accessing invalid memory 
-    if (!is_user_vaddr(usp) || pagedir_get_page(thread_current()->pagedir,usp) == NULL) {
-        sys_exit(-1);
-    }
-
+    validate_user_pointer(usp); // Validate the stack pointer
 
     //printf("Callno = %d\n" , *usp);
-
     int callno = *usp;
     
     switch (callno) {
@@ -76,9 +69,6 @@ syscall_handler(struct intr_frame *f UNUSED)
             sys_exit(*(usp + 1));
             break;
         case SYS_EXEC:
-            //if (!is_user_vaddr(usp + 1)) {
-            //    sys_exit(-1); // Invalid argument
-            //}
             //f->eax = sys_exec((const char *)*(usp + 1));
             break;
         case SYS_WAIT:
@@ -88,28 +78,17 @@ syscall_handler(struct intr_frame *f UNUSED)
             f->eax = sys_create((const char *)*(usp + 1), *(usp + 2));
             break;
         case SYS_REMOVE:
-        {
+            {
                 const char *file_name = (const char *) *(usp + 1);
-                // validate the file name pointer 
-                if (file_name == NULL || !is_user_vaddr(file_name) 
-                    || pagedir_get_page(thread_current()->pagedir,usp) == NULL) {
-                        sys_exit(-1);
-                    }
                 // call sys_remove and store the result in eax
                 f->eax = sys_remove(file_name);
-
             }
             //f->eax = sys_remove((const char *)*(usp + 1));
             break;
         case SYS_OPEN:
             {
                 const char *file_name = (const char *)*(usp+1);
-                if(!is_user_vaddr(file_name)){
-                    sys_exit(-1);
-                }
-                if (file_name == NULL) {
-                    sys_exit(-1);
-                }
+
                 f->eax = sys_open(file_name);
             }
             //f->eax = sys_open((const char *)*(usp + 1));
@@ -160,10 +139,12 @@ void sys_halt(void) {
  * escriptor. Different file descriptors for a single file are closed independently
  * in separate calls to close and they do not share a file position.*/
 int sys_open(const char *file_name) {
+
     if(pagedir_get_page(thread_current()->pagedir, file_name) == NULL)
     {
         sys_exit(-1);//Exit status if pointer is invalid ===validate arguments
     }
+    validate_user_pointer(file_name); // Ensure file_name is a valid user pointer
 
     if(strcmp(file_name, "") == 0){
         return -1;
@@ -204,15 +185,12 @@ void sys_exit(int status){
 Returns true if successful, false otherwise. Creating a new file does not open it:
 opening the new file is a separate operation which would require a open system call.*/
 bool sys_create(const char *file_name, off_t initial_size){
-    if(pagedir_get_page(thread_current()->pagedir, file_name) == NULL)
-    {
-        sys_exit(-1);
-    }
+    validate_user_pointer(file_name); // Ensure file_name is a valid user pointer
     if(filesys_create(file_name, initial_size) == 1){
-        return 1;
+        return true;
     }
     else{
-        return 0;
+        return false;
     }
 }
 /*Returns the size, in bytes, of the file open as fd.*/
@@ -253,16 +231,12 @@ int sys_filesize(int fd){
 */
 int sys_write(int fd, const void *buffer, unsigned size) {
     // Validate buffer address range within user address space 
-    if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL 
-    || !is_user_vaddr(buffer + size) ||   pagedir_get_page(thread_current()->pagedir, buffer + size) == NULL)
-    {
-        sys_exit(-1);
-    }
+    validate_user_pointer(buffer); // Validate base pointer
+    validate_user_pointer(buffer + size - 1); // Validate end of buffer
 
     // stdout == fd ==1 fd 1 wries to buffer 
     if (fd == 1) { // Writing to console (stdout)
 
-        // write to the console
         putbuf((const char *)buffer, size); // output buffer content to console 
         return size; // Return number of bytes written ---not sure if I want to do this confirm 
     }
@@ -271,7 +245,10 @@ int sys_write(int fd, const void *buffer, unsigned size) {
     struct thread *t = thread_current();
 
     //Validate file descriptor range
-    if (fd < 2 || fd >= t->next_fd || t->fd_table == NULL){
+    //if (fd < 2 || fd >= t->next_fd || t->fd_table == NULL){
+    //    sys_exit(-1);  //Invalid file descriptor
+    //}
+    if (fd < 3 || fd >= t->next_fd || t->fd_table == NULL){
         sys_exit(-1);  //Invalid file descriptor
     }
 
@@ -294,11 +271,9 @@ int sys_write(int fd, const void *buffer, unsigned size) {
 // or -1 if the file could not be read (due to a condition other
 // than end of file). Fd 0 reads from the keyboard using input_getc().
 int sys_read(int fd, void *buffer, unsigned size) {
-    if (!is_user_vaddr(buffer) || pagedir_get_page(thread_current()->pagedir, buffer) == NULL 
-    || !is_user_vaddr(buffer + size) || pagedir_get_page(thread_current()->pagedir, buffer + size) == NULL)
-    {
-        sys_exit(-1); // validate arguments
-    }
+    validate_user_pointer(buffer); // Validate base pointer
+    validate_user_pointer(buffer + size - 1); // Validate end of buffer
+
     if (fd == 0) {
         unsigned i;
         for (i = 0; i < size; i++) {
@@ -307,7 +282,7 @@ int sys_read(int fd, void *buffer, unsigned size) {
             }
         }
             return size;
-    }
+    } 
     
      //Get the current thread/process
     struct thread *t = thread_current();
@@ -316,7 +291,7 @@ int sys_read(int fd, void *buffer, unsigned size) {
     // Validate file descriptor range
     if (fd < 3 || fd >= t->next_fd) {
         return -1;  //Invalid file descriptor
-        printf("Error: invalid fd\n");
+        //printf("Error: invalid fd\n");
     }
 
     //Get file struct from the fdtable using fd
@@ -327,19 +302,19 @@ int sys_read(int fd, void *buffer, unsigned size) {
     file_length(file);
     // printf("sys_read(): file length shows as %lld\n", (long long)file_length(file));
 
-    int bytes_read = file_read(file, buffer, size);
-    if(bytes_read == -1){
-        return -1;
-    }
-
-    return bytes_read;
+    //int bytes_read = file_read(file, buffer, size);
+    //if(bytes_read == -1){
+    //    return -1;
+    //}
+//
+    //return bytes_read;
+    return file_read(file, buffer, size);
+    
 
 }
 tid_t sys_exec (const char *cmd_line) {
-    if (!is_user_vaddr(cmd_line) || pagedir_get_page(thread_current()->pagedir, cmd_line) == NULL)
-    {
-        sys_exit(-1); // validate arguments
-    }
+    validate_user_pointer(cmd_line); // Ensure cmd_line is a valid user pointer
+
     // copy cmd_line to kernel space
     char *cmd_copy = palloc_get_page(0);
     if (cmd_copy == NULL) {
@@ -367,6 +342,7 @@ Returns true if successful, false otherwise. A file may be removed
 regardless of whether it is open or closed, and removing an open 
 file does not close it. See Removing an Open File, for details.*/
 bool sys_remove (const char *file_name) {
+    validate_user_pointer(file_name); // Ensure file_name is a valid user pointer
     return filesys_remove(file_name);
 }
 void sys_seek(int fd, unsigned position) {
@@ -390,8 +366,8 @@ void sys_seek(int fd, unsigned position) {
 static int
 get_user (const uint8_t *uaddr)
 {
-    if (!is_user_vaddr(uaddr) || pagedir_get_page(thread_current()->pagedir,uaddr) == NULL) {
-        sys_exit(-1);
+    if (!is_user_vaddr(uaddr)) {
+        return -1; // Invalid virtual address.
     }
     int result;
     asm ("movl $1f, %0; movzbl %1, %0; 1:": "=&a" (result) : "m" (*uaddr));
@@ -405,4 +381,9 @@ put_user (uint8_t *udst, uint8_t byte)
     int error_code;
     asm ("movl $1f, %0; movb %b2, %1; 1:": "=&a" (error_code), "=m" (*udst) : "q" (byte));
     return error_code != -1;
+}
+static void validate_user_pointer(const void *ptr) {
+    if (!is_user_vaddr(ptr) || pagedir_get_page(thread_current()->pagedir, ptr) == NULL) {
+        sys_exit(-1); // Invalid pointer, terminate process
+    }
 }

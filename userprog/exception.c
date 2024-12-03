@@ -133,6 +133,12 @@ page_fault(struct intr_frame *f)
      * (#PF)". */
     asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
+    // Terminate process if fault address is invalid.
+    // Check if the page is valid and handle it, or terminate otherwise.
+    if (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL) {
+        sys_exit(-1);
+    }
+
     /* Turn interrupts back on (they were only off so that we could
      * be assured of reading CR2 before it changed). */
     intr_enable();
@@ -145,6 +151,15 @@ page_fault(struct intr_frame *f)
     write = (f->error_code & PF_W) != 0;
     user = (f->error_code & PF_U) != 0;
 
+    /* Handle the fault appropriately */
+    if (not_present) {
+        // Handle cases where the page is not loaded or mapped.
+        // For example, load the page on demand if implementing virtual memory.
+    } else {
+        // Handle other errors like writing to read-only pages.
+        sys_exit(-1);
+    }
+    
     /* To implement virtual memory, delete the rest of the function
      * body, and replace it with code that brings in the page to
      * which fault_addr refers. */
