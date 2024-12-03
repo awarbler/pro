@@ -53,6 +53,8 @@ struct semaphore exiting;
 tid_t
 process_execute(const char *cmd) 
 {
+    log(L_TRACE, "process_execute: Starting with command '%s'", cmd);
+
     char *cmd_copy; 
     tid_t tid;
 
@@ -66,37 +68,76 @@ process_execute(const char *cmd)
     /* Make a copy of FILE_NAME.
      * Otherwise there's a race between the caller and load(). */
     cmd_copy = palloc_get_page(0);// copying to avoid modifying original args.c test
-        if (cmd_copy == NULL) {
+    if (cmd_copy == NULL) {
+        log(L_ERROR, "process_execute: Memory allocation failed for cmd_copy");
         return TID_ERROR;
     }
     strlcpy(cmd_copy, cmd, PGSIZE);
-
+    log(L_TRACE, "process_execute: Command copied successfully '%s'", cmd);
     // TODO : args.c test put into documentation 
     // Parse the string and tokenize it using strtok_r to break the command line into individual words
     //file_name = strtok_r(cmd_copy, " ", &save_ptr); 
     //printf("From process execute, cmd_copy = %s\n", cmd_copy);
     
     args.file_name = strtok_r(cmd_copy, " ", &args.file_args);
+    log(L_TRACE, "process_execute: Parsed file_name='%s', file_args='%s'", args.file_name, args.file_args ? args.file_args : "None");
     //char *token, *save_ptr;
     //token = strtok_r(cmd_copy, " ", &save_ptr);
     //if (token == NULL) {
     //    palloc_free_page(cmd_copy);
     //    return TID_ERROR;
     //}
+
     sema_init(&launched, 0); //t->launched later
+    log(L_TRACE, "process_execute: Creating thread for file_name='%s'", args.file_name);
     sema_init(&exiting, 0);
 
     /* Create a new thread to execute FILE_NAME. 
      * args.c test The thread is created to start executing at start_process()*/
     tid = thread_create(args.file_name, PRI_DEFAULT, start_process, &args);
     if (tid == TID_ERROR) {
+        log(L_ERROR, "process_execute: Failed to create thread for command: %s", cmd);
         palloc_free_page(cmd_copy); // Free the allocated page if thread creation fails
         return tid;
     }
     sema_down(&launched);
 
-    // if the child thread failed to load
+    log(L_TRACE, "process_execute: Child thread %d created by parent %d", tid, thread_current()->tid);
     
+    struct thread *child_thread = get_thread_by_tid(tid);
+    
+    if (child_thread != NULL) {
+        log(L_TRACE, "process_execute: Linking child tid=%d to parent tid=%d", tid, thread_current()->tid);
+        struct thread *cur = thread_current();
+        child_thread->ptid = cur->tid; // set parent tid 
+        if (list_empty(&cur->children)) {
+            list_init(&cur->children);
+        }
+        // Initialize the list 
+        //list_init(&child_thread->child_elem);
+        // Add the child thread to the parents children list 
+        list_push_back(&cur->children, &child_thread->child_elem);
+        
+        // Initialize the childs semaphore 
+        sema_init(&child_thread->wait_sema, 0); // initialize childs semaphore
+        child_thread->is_waited_on = false; // mark as not waited on
+
+        
+    }
+    log(L_TRACE, "process_execute: Parent thread %d waiting on child %d", thread_current()->tid, tid);
+    
+    // timeout mechanism 
+    bool success = sema_try_down(&launched);
+    if (!success) {
+        log(L_ERROR, "process_execute: Timeout while waiting for child %d", tid);
+        palloc_free_page(cmd_copy);
+        return TID_ERROR;
+    }//sema_down(&launched);
+    log(L_TRACE, "process_execute: Child initialization complete for tid=%d", tid);
+
+    log(L_TRACE, "process_execute: Successfully created process with tid=%d", tid);
+    
+    // if the child thread failed to load
     // Free cmd_cpy here after the thread is created
     palloc_free_page(cmd_copy);
     return tid;
@@ -108,7 +149,6 @@ static void
 start_process(void *args_ptr) 
 {
     struct args_struct *args = args_ptr;
-
     //char *file_name = cmd;
     struct intr_frame if_;
     bool success;
@@ -124,16 +164,21 @@ start_process(void *args_ptr)
     if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
     if_.cs = SEL_UCSEG;
     if_.eflags = FLAG_IF | FLAG_MBS;
+    
     success = load(args->file_name, args->file_args, &if_.eip, &if_.esp);// TODO: change filename to cmd but cofirm we made the change in load
 
 
     /* If load failed, quit. */
     //palloc_free_page(cmd); // TODO confirm we made all changes in load 
     if (!success) {
+        log(L_ERROR, "start_process: Failed to load executable for thread %d", cur->tid);
         sema_up(&launched);
         thread_exit();
     }
     sema_up(&launched);
+    log(L_TRACE, "start_process: Thread %d signaling parent and starting user program", cur->tid);
+    
+
 
     /* Start the user process by simulating a return from an
      * interrupt, implemented by intr_exit (in
@@ -158,17 +203,41 @@ int
 process_wait(tid_t child_tid UNUSED)
 {
     sema_down(&exiting);
-    //int i; 
-    //for (i = 0; i < 1000000000; i++);
-
-    //while (1) {} // give the process a chance to run edit 10282024
-    //return -1;
+    //struct thread *cur = thread_current();
+    //log(L_TRACE, "process_wait: Parent thread %d waiting for child %d", cur->tid, child_tid);
+    //struct list_elem *e;
+    //log(L_TRACE, "read %d entering process_wait()", thread_current()->tid);
+    //// Find the child in the current thread's children list
+    //for (e = list_begin(&cur->children); e != list_end(&cur->children); e = list_next(e)) {
+    //    struct thread *child = list_entry(e, struct thread, child_elem);
+    //    if (child->tid == child_tid) {
+    //        if (child->is_waited_on) {
+    //            log(L_WARN, "process_wait: Child %d already waited on by parent %d", child_tid, cur->tid);
+    //            return -1; // Already being waited on
+    //        }
+    //        
+    //        child->is_waited_on = true;
+    //        log(L_TRACE, "process_wait: Parent thread %d blocking on child %d", cur->tid, child_tid);
+    //        // Block until the child signals completion
+    //        if (!sema_try_down(&child->wait_sema)){
+    //            log(L_ERROR, "process_wait: Timeout while waiting for child %d", child_tid);
+    //            return -1;
+    //        }
+    //        log(L_TRACE, "process_wait: Parent thread %d unblocked by child %d", cur->tid, child_tid);
+    //        // Remove the child from the list
+    //        list_remove(&child->child_elem);
+    //        return child -> exitStatus; // returns the child exit status 
+    //       
+    //    }
+    //}
+    //log(L_WARN, "process_wait: Child %d not found in parent %d's children list", child_tid, cur->tid);
     // enforce on ordering parent wait should block for child exit to be done 
     // need to have a wait for both to synchronize 
     // version one use a global semaphore 
     // declare call it a struct process wait after the child 
     // is the parent process exit is child 
     // initialize the semaphore create 
+    return -1; 
 }
 
 /* Free the current process's resources. */
@@ -176,7 +245,32 @@ void
 process_exit(void)
 {
     struct thread *cur = thread_current();
+    log(L_TRACE, "process_exit: Thread %d exiting", cur->tid);
+    
     uint32_t *pd;
+    // close all open files 
+    //for (int i = 3; i < MAX_OPEN_FILES; i++ ) {
+    //    if (cur->fd_table->entries[i] != NULL) {
+    //        file_close(cur->fd_table->entries[i]);
+    //        cur->fd_table->entries[i]= NULL;
+    //    }
+    //}
+//
+    //if (cur->fd_table !=NULL) {
+    //    palloc_free_page(cur->fd_table);
+    //    cur->fd_table = NULL;
+    //}
+    ///* Signal the parent if it's waiting */
+    //if (cur->parent != NULL && cur->is_waited_on) {
+    //    log(L_TRACE, "process_exit: Thread %d signaling parent %d", cur->tid, cur->parent->tid);
+    //    sema_up(&cur->wait_sema); // This signals the parent process 
+    //}
+    ///* Reassign children or clean them up */
+    //while (!list_empty(&cur->children)) {
+    //    struct list_elem *e = list_pop_front(&cur->children);
+    //    struct thread *child = list_entry(e, struct thread, child_elem);
+    //    child->ptid = TID_ERROR; // Orphan the child
+    //}
 
     /* Destroy the current process's page directory and switch back
      * to the kernel-only page directory. */
@@ -193,7 +287,9 @@ process_exit(void)
         pagedir_activate(NULL);
         pagedir_destroy(pd);
     }
-    sema_up(&exiting);
+
+    sema_up(&exiting); // maybe causing race issues 
+    log(L_TRACE, "process_exit: Thread %d cleanup complete", cur->tid);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -412,7 +508,7 @@ load(char *file_name_ptr, char *file_args, void(**eip) (void), void **esp) // ch
     }
     /* Start address. */
     *eip = (void (*)(void))ehdr.e_entry;
-
+    log(L_TRACE, "load: Executable loaded at entry point %p, stack pointer %p", *eip, *esp);
     success = true;
 
 done:
@@ -562,31 +658,22 @@ setup_stack(const char *file_name, char *args, void **esp)
     if (kpage != NULL) {
         success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
         if (success) {
-            *esp = PHYS_BASE;         
+            log(L_TRACE, "setup_stack: argc=%d, argv[0]=%p, argv[1]=%p", argc, argv[0], argc > 1 ? argv[1] : NULL);
+            *esp = PHYS_BASE;
+            //hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - *esp, true);
             argc = 0;
             arg = file_name;
             // printf("From setup_stack, filename is %s; args are %s\n", file_name, args);
             i = 0;
             while (arg != NULL){
                 len = strlen(arg) + 1; //  INcludes null terminator 
-                // argv[i] = arg; testing moved this to test 
+                argv[i] = arg; 
                 *esp -= len;
                 memcpy(*esp, arg, len); // copy argument to stack
                 argv[i] = *esp;
-                // printf("tokenizing %d'th arg: %s\n", i, arg); 
-                //i++; // moved testing 
-                //argc++; moved testing 
-                //arg = args != NULL ? strtok_r(NULL, " ", &args) : NULL;//Get next token
-                //  cpde validation 
-                // Get the next token only if args is not NULL
-                if (args != NULL) {
-                    arg = strtok_r(NULL, " ", &args);
-                } else {
-                    arg = NULL;
-                }
-                // arg = strtok_r(NULL, " ", &args); //  added if statement for validation 
                 i++;
                 argc++;
+                arg = strtok_r(NULL, " ", &args); //  added if statement for validation 
             }
             argv[i] = NULL;
             // printf("argc = %d\n", argc);
@@ -629,8 +716,11 @@ setup_stack(const char *file_name, char *args, void **esp)
         } else {
             palloc_free_page(kpage);
         }
-        // hex_dump( *(int*)esp, *esp, 128, true ); // NOTE: uncomment this to check arg passing
+
+        // Debug stack contents
+        //hex_dump(*(int *)esp, *esp, PHYS_BASE - *esp, true);
     }
+
     return success;
 }
 

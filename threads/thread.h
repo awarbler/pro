@@ -4,6 +4,8 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "threads/synch.h"
+#include <string.h>
 
 /* States in a thread's life cycle. */
 enum thread_status {
@@ -26,6 +28,7 @@ typedef int tid_t;
 //Defining maximum number of open files
 #define MAX_OPEN_FILES 128
 
+struct thread *get_thread_by_tid(tid_t tid);
 //Define a structure for file descriptor table
 struct fdtable{
     struct file *entries[MAX_OPEN_FILES];
@@ -97,16 +100,24 @@ struct thread {
     struct list_elem   allelem;  /* List element for all threads list. */
     struct fdtable *fd_table;    /* File descriptor table. */
     int next_fd;                 /* Next file descriptor to allocate. */
-
+    struct semaphore wait_sema; 
+    struct list children; // list of child threads
+    struct lock children_lock; // new lock 
+    struct list_elem child_elem; // list element for parents children
     /* Shared between thread.c and synch.c. */
     struct list_elem elem; /* List element. */
+    struct thread *parent; // Pointer to the parent thread 
+    tid_t ptid; // parents tid
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir; /* Page directory. */
     int exitStatus; // holds exit status of a thread as a schild so my parent can reap it
-    tid_t ptid; // parents tid
+    
     // add a file descriptor table
+
+    bool is_waited_on; // flag to indicate if the thread is being waited on 
+
     
 #endif
 

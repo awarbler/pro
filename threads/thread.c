@@ -79,6 +79,7 @@ static void schedule(void);
 
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
+struct thread *get_thread_by_tid(tid_t tid);
 
 /* Initializes the threading system by transforming the code
  * that's currently running into a thread.  This can't work in
@@ -479,6 +480,10 @@ init_thread(struct thread *t, const char *name, int priority)
     t->priority = priority;
     t->magic = THREAD_MAGIC;
 
+    // Initialize locks for children 
+    lock_init(&t->children_lock);
+    list_init(&t->children);
+    
     old_level = intr_disable();
     list_push_back(&all_list, &t->allelem);
     intr_set_level(old_level);
@@ -598,3 +603,18 @@ allocate_tid(void)
 /* Offset of `stack' member within `struct thread'.
  * Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
+
+// helper function 
+struct thread *get_thread_by_tid(tid_t tid)
+{
+    struct list_elem * e; 
+    // iterat through the global all list to find the thread with matching tid
+    for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)){
+        struct  thread *t = list_entry(e, struct thread, allelem);
+        if (t->tid == tid) {
+            return t; 
+        }
+    }
+    return NULL; // Return null if no thread matches 
+
+}
