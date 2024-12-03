@@ -88,7 +88,6 @@ syscall_handler(struct intr_frame *f UNUSED)
         case SYS_OPEN:
             {
                 const char *file_name = (const char *)*(usp+1);
-
                 f->eax = sys_open(file_name);
             }
             //f->eax = sys_open((const char *)*(usp + 1));
@@ -113,8 +112,6 @@ syscall_handler(struct intr_frame *f UNUSED)
         case SYS_CLOSE:     /* Close a file. */
                 break;
         default:
-            // handle unknow system calls 
-            // not sure if I want to do thins 
             sys_exit(-1);
             break;
     }
@@ -139,13 +136,11 @@ void sys_halt(void) {
  * escriptor. Different file descriptors for a single file are closed independently
  * in separate calls to close and they do not share a file position.*/
 int sys_open(const char *file_name) {
-
     if(pagedir_get_page(thread_current()->pagedir, file_name) == NULL)
     {
         sys_exit(-1);//Exit status if pointer is invalid ===validate arguments
     }
     validate_user_pointer(file_name); // Ensure file_name is a valid user pointer
-
     if(strcmp(file_name, "") == 0){
         return -1;
     }    
@@ -175,7 +170,6 @@ errors.
 void sys_exit(int status){
     struct thread *cur = thread_current();// Get the current thread 
     cur->exitStatus = status;// Set the exit status for the current process
-
     printf("%s: exit(%d)\n", cur->name, status); // LOG progress of exit status 
     // where do we get args-none m where do we find the name every process has to have a name 
     thread_exit(); // Terminate the thread 
@@ -197,13 +191,11 @@ bool sys_create(const char *file_name, off_t initial_size){
 int sys_filesize(int fd){
     //Get current thread/process
     struct thread *t = thread_current();
-    
     //Validate file descriptor range
     if (fd < 3 || fd >= t->next_fd) {
         return -1;  //Invliad file descriptor
         printf("Error: invalid fd\n");
     }
-
     //Get file struct from the fdtable using fd
     struct file *file = t->fd_table->entries[fd];
     if (file == NULL) {
@@ -233,17 +225,13 @@ int sys_write(int fd, const void *buffer, unsigned size) {
     // Validate buffer address range within user address space 
     validate_user_pointer(buffer); // Validate base pointer
     validate_user_pointer(buffer + size - 1); // Validate end of buffer
-
     // stdout == fd ==1 fd 1 wries to buffer 
     if (fd == 1) { // Writing to console (stdout)
-
         putbuf((const char *)buffer, size); // output buffer content to console 
         return size; // Return number of bytes written ---not sure if I want to do this confirm 
     }
-
     //Get the current thread/process
     struct thread *t = thread_current();
-
     //Validate file descriptor range
     //if (fd < 2 || fd >= t->next_fd || t->fd_table == NULL){
     //    sys_exit(-1);  //Invalid file descriptor
@@ -251,19 +239,15 @@ int sys_write(int fd, const void *buffer, unsigned size) {
     if (fd < 3 || fd >= t->next_fd || t->fd_table == NULL){
         sys_exit(-1);  //Invalid file descriptor
     }
-
     struct file *file = t->fd_table->entries[fd];
-
     // Retrieve file struct from the fdtable using fd
     if (file == NULL) {
         return -1;  //File descriptor not associated with an open file
     }
-
     int bytes_written = file_write(file, buffer, (off_t) size);
     if(bytes_written == -1){//error handling
         return -1;
     }
-
     return bytes_written;
 }
 // Reads size bytes from the file open as fd into buffer. 
@@ -273,7 +257,6 @@ int sys_write(int fd, const void *buffer, unsigned size) {
 int sys_read(int fd, void *buffer, unsigned size) {
     validate_user_pointer(buffer); // Validate base pointer
     validate_user_pointer(buffer + size - 1); // Validate end of buffer
-
     if (fd == 0) {
         unsigned i;
         for (i = 0; i < size; i++) {
@@ -283,17 +266,14 @@ int sys_read(int fd, void *buffer, unsigned size) {
         }
             return size;
     } 
-    
      //Get the current thread/process
     struct thread *t = thread_current();
-
     // printf("FD is %d\n", fd);
     // Validate file descriptor range
     if (fd < 3 || fd >= t->next_fd) {
         return -1;  //Invalid file descriptor
         //printf("Error: invalid fd\n");
     }
-
     //Get file struct from the fdtable using fd
     struct file *file = t->fd_table->entries[fd];
     if (file == NULL) {
@@ -301,34 +281,28 @@ int sys_read(int fd, void *buffer, unsigned size) {
     }
     file_length(file);
     // printf("sys_read(): file length shows as %lld\n", (long long)file_length(file));
-
-    //int bytes_read = file_read(file, buffer, size);
-    //if(bytes_read == -1){
-    //    return -1;
-    //}
+    int bytes_read = file_read(file, buffer, size);
+    if(bytes_read == -1){
+        return -1;
+    }
 //
-    //return bytes_read;
-    return file_read(file, buffer, size);
+    return bytes_read;
+    //return file_read(file, buffer, size);
     
 
 }
 tid_t sys_exec (const char *cmd_line) {
     validate_user_pointer(cmd_line); // Ensure cmd_line is a valid user pointer
-
     // copy cmd_line to kernel space
     char *cmd_copy = palloc_get_page(0);
     if (cmd_copy == NULL) {
         return -1;
     }
-
     strlcpy(cmd_copy, cmd_line, PGSIZE);
-
     // Call process_execute 
     tid_t tid = process_execute(cmd_line);
-
     // free cmd_copy after process_execute 
     palloc_free_page(cmd_copy);
-
     if (tid == TID_ERROR) {
         return -1;
     }
@@ -346,19 +320,16 @@ bool sys_remove (const char *file_name) {
     return filesys_remove(file_name);
 }
 void sys_seek(int fd, unsigned position) {
-        struct thread *t = thread_current();
-
+    struct thread *t = thread_current();
     // Validate file descriptor range
     if (fd < 3 || fd >= t->next_fd || t->fd_table == NULL) {
         sys_exit(-1);  // Invalid file descriptor
     }
-
     // Retrieve the file struct from the fd_table
     struct file *file = t->fd_table->entries[fd];
     if (file == NULL) {
         sys_exit(-1);  // File descriptor not associated with an open file
     }
-
     // Seek to the specified position
     file_seek(file, position);
 }
@@ -373,7 +344,6 @@ get_user (const uint8_t *uaddr)
     asm ("movl $1f, %0; movzbl %1, %0; 1:": "=&a" (result) : "m" (*uaddr));
     return result;
 }
-
 /* Writes BYTE to user address UDST. UDST must be below PHYS_BASE. Returns true if successful, false if a segfault occurred. */
 static bool
 put_user (uint8_t *udst, uint8_t byte)
