@@ -79,6 +79,8 @@ static void schedule(void);
 
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
+
+// TODO: AJW ADDED  lets consider taking out
 struct thread *get_thread_by_tid(tid_t tid);
 
 /* Initializes the threading system by transforming the code
@@ -216,13 +218,21 @@ thread_create(const char *name, int priority,
 
     /* Add to run queue. */
     thread_unblock(t);
-    // TODO: TA HELP start
+    // TODO: TA HELP start SET THIS ALL UP
+#ifdef USERPROG
     //sema_init(&t->sema_wait, 0);
     //sema_init(&t->sema_exit, 0);
     //t->ret_status = RET_STATUS_INIT;
+
     //list_init(&t->children);
+    
     //t->exited = false; 
+    //t->waited = false;
+    // t->parent =thread_current();
+    // if (thread_current() != initial_thread)
+    // list_push_back(&thread_current()->children, &t->child_elem);
     // TODO: TA HELP end
+#endif
     return tid;
 }
 

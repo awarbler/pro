@@ -158,7 +158,8 @@ static void
 start_process(void *args_ptr) 
 {
     struct args_struct *args = args_ptr;
-    //char *file_name = cmd;
+    //char *file_name = cmd; // TODO: per ta we should use this 
+    // char *save_ptr; // TODO: use this approach
     struct intr_frame if_;
     bool success;
     struct thread *cur = thread_current();// TODO: ADD to documentation args.c testGet the current thread
@@ -172,7 +173,8 @@ start_process(void *args_ptr)
     
     success = load(args->file_name, args->file_args, &if_.eip, &if_.esp);// TODO: change filename to cmd but cofirm we made the change in load
     // TODO: TA HELP add 
-    //strlcpy(cur->name, file_name, strlen(file_name) +1);
+    // token = strtok_r (file_name, " ", &save_ptr); // TODO: per ta use this approach
+    // strlcpy(cur->name, file_name, strlen(file_name) +1);
     // Update the name of process TODO: Add to documentation args.c test 
     //strlcpy(cur->name, file_name, strlen(file_name) +1);
 
@@ -214,22 +216,16 @@ int
 process_wait(tid_t child_tid UNUSED)
 {
     sema_down(&exiting); // TODO:PER TA delete 
-    //struct thread *cur = thread_current();
-    //struct list_elem *e;
-    // Child thread waiting
+
     // TODO:PER TA add start
-    //struct thread *child_thread =  get_thread_by_tid(child_tid) ;
-    //if (child_thread == NULL || child_thread->parent != thread_current() ){
-    //    return -1; 
-    //}
-    // wait for child to exit 
-    //sema_down(&child_thread->exit_sema);
-//
-    //int status = child_thread->exitStatus; 
-//
-    ///clean up child resource 
-    //list_remove(&child_thread->child_elem);
-    //return status; // TODO:PER TA add end
+    //struct thread *t, *cur;
+    // t = thread_lookup (child_tid); // i am using struct thread *get_thread_by_tid(tid_t tid);
+    // sema_down(&t->sema_wait);
+    // int ret = t->ret_status;
+    // sema_up(&t->sema_exit);
+    // t->wait = true; 
+    // return ret;
+     // TODO:PER TA add end
     return -1; 
 }
 
@@ -244,7 +240,11 @@ process_exit(void)
     //sema_up(&cur->sema_exit);
     
     uint32_t *pd;
-   
+    // TODO: per ta add 
+    //printf("%s: exit(%d\n", cur->name, cur->ret_status);
+    //sema_up(&cur->sema_wait);
+    //sema_down(&cur->sema_exit);
+
     /* Destroy the current process's page directory and switch back
      * to the kernel-only page directory. */
     pd = cur->pagedir;
