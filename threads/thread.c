@@ -216,7 +216,13 @@ thread_create(const char *name, int priority,
 
     /* Add to run queue. */
     thread_unblock(t);
-
+    // TODO: TA HELP start
+    //sema_init(&t->sema_wait, 0);
+    //sema_init(&t->sema_exit, 0);
+    //t->ret_status = RET_STATUS_INIT;
+    //list_init(&t->children);
+    //t->exited = false; 
+    // TODO: TA HELP end
     return tid;
 }
 
@@ -296,10 +302,20 @@ thread_tid(void)
 void
 thread_exit(void)
 {
+
     ASSERT(!intr_context());
 
 #ifdef USERPROG
+    // TODO: TA HELP start
+    //struct list_elem *e;
+    //struct thread *cur = thread_current();
+    //sema_up(&cur->sema_wait);
+    // TODO: TA HELP end
     process_exit();
+    // TODO: TA HELP start
+    //if(cur->parent-> != NULL && cur->parent != initial_thread)
+    //list_remove(&cur->child_elem);
+    // TODO: TA HELP end
 #endif
 
     /* Remove thread from all threads list, set our status to dying,
@@ -483,6 +499,7 @@ init_thread(struct thread *t, const char *name, int priority)
     // Initialize locks for children 
     lock_init(&t->children_lock);
     list_init(&t->children);
+
     
     old_level = intr_disable();
     list_push_back(&all_list, &t->allelem);

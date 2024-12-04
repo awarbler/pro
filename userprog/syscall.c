@@ -40,6 +40,7 @@ static void validate_user_pointer(const void *ptr) ;
 // function to extract system call arguments from the stack 
 // static int fetch_arguement(void *esp, int arg_index);
 
+// initialize system call handler 
 void 
 syscall_init(void) 
 {
@@ -52,10 +53,10 @@ syscall_handler(struct intr_frame *f UNUSED)
 {
     /* Remove these when implementing syscalls */
     int * usp = f->esp;
-    // TODO document Validate user pointer to avoid accessing invalid memory 
+    // Validate user pointer to avoid accessing invalid memory 
     validate_user_pointer(usp); // Validate the stack pointer
 
-    //printf("Callno = %d\n" , *usp);
+    // Get the system call number from the stack 
     int callno = *usp;
     
     switch (callno) {
@@ -63,12 +64,21 @@ syscall_handler(struct intr_frame *f UNUSED)
         sys_halt();
         break;
         case SYS_EXIT:
+            // Validate the argument / pointer 
             if (!is_user_vaddr(usp + 1) || get_user((uint8_t *)usp + 1) == -1) {
                 sys_exit(-1); // Invalid argument
             }
             sys_exit(*(usp + 1));
             break;
         case SYS_EXEC:
+            {
+                const char *cmd_line = (const char *) *(usp + 1);
+                //Validate the pointer 
+                if (!is_user_vaddr(cmd_line) || get_user((uint8_t *)cmd_line) == -1) {
+                sys_exit(-1); // Invalid argument failed checks exit 
+                }
+                f->eax = sys_exec(cmd_line); // Validation passed call sys exec
+            }
             //f->eax = sys_exec((const char *)*(usp + 1));
             break;
         case SYS_WAIT:
@@ -96,6 +106,7 @@ syscall_handler(struct intr_frame *f UNUSED)
             f->eax = sys_filesize(*(usp + 1));
             break;
         case SYS_READ:
+
             f->eax = sys_read(*(usp + 1), (void *)*(usp + 2), *(usp + 3));
             break;
         case SYS_WRITE:
@@ -298,15 +309,20 @@ tid_t sys_exec (const char *cmd_line) {
     if (cmd_copy == NULL) {
         return -1;
     }
+    //Copy the command line to the kernel 
     strlcpy(cmd_copy, cmd_line, PGSIZE);
-    // Call process_execute 
+    // Call process_execute  with the copied command line
     tid_t tid = process_execute(cmd_line);
     // free cmd_copy after process_execute 
     palloc_free_page(cmd_copy);
+    // Returns -1 if execute process failed 
+    //if (tid == TID_ERROR) {
+    //    sys_exit(-1);
+    //}
     if (tid == TID_ERROR) {
         return -1;
     }
-    return tid;
+    return tid; // Returns the new process id 
 }
 int sys_wait(tid_t tid) {
     return process_wait(tid);

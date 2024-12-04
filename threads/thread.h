@@ -100,23 +100,28 @@ struct thread {
     struct list_elem   allelem;  /* List element for all threads list. */
     struct fdtable *fd_table;    /* File descriptor table. */
     int next_fd;                 /* Next file descriptor to allocate. */
-    struct semaphore wait_sema; 
+    
+    /* Shared between thread.c and synch.c. */
+    struct list_elem elem; /* List element. */
+    // TODO: clean up what we are not using
+       // add a file descriptor table
+    // TODO: clean up what we are not using
+    bool is_waited_on; // flag to indicate if the thread is being waited on 
+    struct thread *parent; // Pointer to the parent thread 
+    tid_t ptid; // parents tid
+    struct semaphore sema_wait; 
+    struct semaphore sema_exit;  // Synchronize parent and child
     struct list children; // list of child threads
     struct lock children_lock; // new lock 
     struct list_elem child_elem; // list element for parents children
-    /* Shared between thread.c and synch.c. */
-    struct list_elem elem; /* List element. */
-    struct thread *parent; // Pointer to the parent thread 
-    tid_t ptid; // parents tid
-
+   
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir; /* Page directory. */
     int exitStatus; // holds exit status of a thread as a schild so my parent can reap it
     
-    // add a file descriptor table
-
-    bool is_waited_on; // flag to indicate if the thread is being waited on 
+ 
+    
 
     
 #endif
