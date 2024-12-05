@@ -61,6 +61,27 @@
     "string.h": "c",
     "libc-header-start.h": "c",
     "*.inc": "c",
-    "cstdlib": "c"
-  }
+    "cstdlib": "c",
+    "tss.h": "c"
+  },
+  "cSpell.words": [
+    "Ehdr",
+    "ehsize",
+    "kpage",
+    "memsz",
+    "mlfqs",
+    "PGMASK",
+    "PGSIZE",
+    "phentsize",
+    "phnum",
+    "phoff",
+    "ptid",
+    "shentsize",
+    "shnum",
+    "shoff",
+    "shstrndx",
+    "UCSEG",
+    "UDSEG"
+  ],
+  "C_Cpp.errorSquiggles": "disabled"
 }

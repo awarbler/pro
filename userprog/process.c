@@ -14,38 +14,30 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
-
-#include "threads/synch.h"// TODO: what does this do came from david
+#include "threads/synch.h"// Synchronization and Semaphores 
 
 #include "userprog/gdt.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
 #include "userprog/tss.h"
+#include <log.h>
 
 #define LOGGING_LEVEL 6
 
-#include <log.h>
-
-//file structs for stdin, stdout, and stderr
-static struct file stdin_file;
+// File structs for stdin, stdout, and stderr
+static struct file stdin_file; 
 static struct file stdout_file;
 static struct file stderr_file;
-
+// Structure to store program name and arguments 
 struct args_struct { 
-    char *file_name;
-    char *file_args;
+    char *file_name; // Holds the programs file name - executable 
+    char *file_args; // Holds the arguments to the program 
 };
 
 static thread_func start_process NO_RETURN;
 static bool load(char *file_name_ptr, char *file_args, void(**eip) (void), void **esp);
-
-int fd_alloc(struct file *file);
-// struct thread *get_thread_by_tid(tid_t tid);
-
-struct semaphore launched;
-struct semaphore exiting;
-
-
+// File descriptor allocation 
+int fd_alloc(struct file *file); 
 
 /* Starts a new thread running a user program loaded from
  * FILENAME.  The new thread may be scheduled (and may even exit)
@@ -56,106 +48,57 @@ process_execute(const char *cmd)
 {
     log(L_TRACE, "process_execute: Starting with command '%s'", cmd);
     
-    char *cmd_copy;  // A copy of the command to avoid race conditon
+    char *cmd_copy;  // A copy of the command to avoid race condition
     tid_t tid; // Thread id of the new process 
-    // Parse the command into filename and args using strtok_r
-    struct args_struct args; //dc
+    struct args_struct args; // Parse the command into filename and args using strtok_r
     // NOTE:
     // To see this print, make sure LOGGING_LEVEL in this file is <= L_TRACE (6)
     // AND LOGGING_ENABLE = 1 in lib/log.h
-    // Also, probably won't pass with logging enabled. //log(L_TRACE, "Started process execute: %s", cmd);
-    // TODO: TA HELP add struct thread *t = NULL
+    // TA HELP add struct thread *t = NULL // TODO: Delete if we are are not going to use 
     //struct thread *t = NULL; // Pointer to the child thread 
     log(L_TRACE, "Started process execute: %s", cmd_copy);
 
-    // Allocate memory for cmd_cpy // TODO TA KEEP
-    cmd_copy = palloc_get_page(0);// copying to avoid modifying original args.c test
-    if (cmd_copy == NULL) {
-        log(L_ERROR, "process_execute: Memory allocation failed for cmd_copy");
-        return TID_ERROR; // Memory allocation failed 
+    // Allocate memory for cmd_cpy 
+    cmd_copy = palloc_get_page(0); 
+    if (cmd_copy == NULL) {  // check if memory allocation failed
+        log(L_ERROR, "process_execute: Memory allocation failed for cmd_copy"); //TODO : delete when we are finished 
+        return TID_ERROR; // Return memory allocation failed 
     }
-    // Copy the command into cmd copy
-    strlcpy(cmd_copy, cmd, PGSIZE);
     
+    strlcpy(cmd_copy, cmd, PGSIZE); // Copy the command into cmd copy
     log(L_TRACE, "process_execute: Command copied successfully '%s'", cmd);
     
-    // TODO : args.c test put into documentation 
-    // Parse the string and tokenize it using strtok_r to break the command line into individual words
-    //file_name = strtok_r(cmd_copy, " ", &save_ptr); 
-    //printf("From process execute, cmd_copy = %s\n", cmd_copy);
-    
-    // TODO: TA Look at args.file_name his suggestion 
-    // strlcpy(cmd_copy, cmd, pgsize);
+    // Tokenize the command string into file name and arguments 
     args.file_name = strtok_r(cmd_copy, " ", &args.file_args);
     log(L_TRACE, "process_execute: Parsed file_name='%s', file_args='%s'", args.file_name, args.file_args ? args.file_args : "None");
-
-    // Initialize a semaphore to wait for a child process to load
-    // TODO: per ta delete sema_init(&launched, 0) 
-    // TODO: per ta deleteall the way to log(L_TRACE, "process_execute: Creating thread for file_name='%s'", args.file_name);
-    // TODO: per ta delete sema_init(&exiting, 0);
-    // sema_init(&launched, 0); //t->launched later
-    log(L_TRACE, "process_execute: Creating thread for file_name='%s'", args.file_name);
-    // sema_init(&exiting, 0);
-
-    /* Create a new thread to execute FILE_NAME for the process 
-     * args.c test The thread is created to start executing at start_process()*/
+    // Received help from the ta using threads globally and in regards to semaphores we were using sema_init(&launched, 0) sema_init(&exiting, 0);
+    // TODO: delete all the way to log(L_TRACE, "process_execute: Creating thread for file_name='%s'", args.file_name);
+    // TODO: use tid = thread_crate(file_name, PRi_default, start_process, cmd_copy) if we are having line up issues 
+    // Create a new thread to execute FILE_NAME for the process
     tid = thread_create(args.file_name, PRI_DEFAULT, start_process, &args);
-    // TODO: per ta use tid = thread_crate(file_name, PRi_default, start_process, cmd_copy)
+
     if (tid == TID_ERROR) {
-        log(L_ERROR, "process_execute: Failed to create thread for command: %s", cmd);
+        log(L_ERROR, "process_execute: Failed to create thread for command: %s", cmd);// TODO: Delete when we are finished
         palloc_free_page(cmd_copy); // Free the allocated page if thread creation fails
-        // printf("maybe i need to delete something below me\n");
-        // return tid; // TODO: Delete per ta
     }
-    //TODO: TA suggestion delete 
-    // sema_down(&launched);
-    // log(L_TRACE, "process_execute: Child thread %d created by parent %d", tid, thread_current()->tid);
-    // struct thread *child_thread = get_thread_by_tid(tid);
-    // if (child_thread != NULL) {
-    //     log(L_TRACE, "process_execute: Linking child tid=%d to parent tid=%d", tid, thread_current()->tid);
-    //     struct thread *cur = thread_current();
-    //     child_thread->ptid = cur->tid; // set parent tid 
-    //     if (list_empty(&cur->children)) {
-    //         list_init(&cur->children);
-    //     }
-    //     // Initialize the list 
-    //     //list_init(&child_thread->child_elem);
-    //     // Add the child thread to the parents children list 
-    //     list_push_back(&cur->children, &child_thread->child_elem);
-    //     // Initialize the childs semaphore 
-    //     sema_init(&child_thread->sema_wait, 0); // initialize childs semaphore
-    //     child_thread->is_waited_on = false; // mark as not waited on   
-    // }
-    // log(L_TRACE, "process_execute: Parent thread %d waiting on child %d", thread_current()->tid, tid);
-    // // timeout mechanism 
-    // bool success = sema_try_down(&launched);
-    // if (!success) {
-    //     log(L_ERROR, "process_execute: Timeout while waiting for child %d", tid);
-    //     palloc_free_page(cmd_copy);
-    //     return TID_ERROR;
-    // }
-    // log(L_TRACE, "process_execute: Child initialization complete for tid=%d", tid);
-    //TODO: TA suggestion delete end
-    // TODO:add per ta start 
-    // Lookup the thread we just created
-    struct thread *t = get_thread_by_tid(tid);
-    if (t == NULL) {
-       log(L_ERROR, "process_execute: Failed to locate thread for tid=%d", tid);
-       palloc_free_page(cmd_copy);
-       return TID_ERROR;
+    // Lookup the thread we just created // Help from the TA regarding sema down and sema wait 
+    struct thread *t = get_thread_by_tid(tid); // Get the thread for the child process
+    if (t == NULL) { // Check if the thread lookup failed 
+        log(L_ERROR, "process_execute: Failed to locate thread for tid=%d", tid);
+        palloc_free_page(cmd_copy); // Free the allocated memory 
+        return TID_ERROR;
     }
-    // Wait for the child process to signal it has loaded 
-    sema_down(&t->sema_wait);
-    // TODO:add per ta end
+    sema_down(&t->sema_wait); // Wait for the child process to signal it has loaded 
+
     log(L_TRACE, "process_execute: Child thread %d created by parent %d",
         tid, thread_current()->tid);
     // Free cmd_cpy here after the thread is created
     palloc_free_page(cmd_copy);
-
+    // Check if the child successfully loaded its executable 
     if (!t->load_success) {
-        return -1;
+        return -1; // Return error if loading failed 
     }
-    return tid; // retruns the thread id of the created process
+    return tid; // Retuns the thread id of the created process
 }
 
 /* A thread function that loads a user process and starts it
@@ -163,12 +106,10 @@ process_execute(const char *cmd)
 static void
 start_process(void *args_ptr) 
 {
-    struct args_struct *args = args_ptr;
-    //char *file_name = cmd; // TODO: per ta we should use this 
-    // char *save_ptr; // TODO: use this approach
-    struct intr_frame if_;
+    struct args_struct *args = args_ptr; // Cast arguments to args_struct
+    struct intr_frame if_; // Interrupt frame for the new process
     bool success;
-    struct thread *cur = thread_current();// TODO: ADD to documentation args.c testGet the current thread
+    struct thread *cur = thread_current(); // Get the current thread
 
     log(L_TRACE, "start_process()");
      /* Initialize interrupt frame and load executable. */
@@ -176,31 +117,20 @@ start_process(void *args_ptr)
     if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
     if_.cs = SEL_UCSEG;
     if_.eflags = FLAG_IF | FLAG_MBS;
-    
-    success = load(args->file_name, args->file_args, &if_.eip, &if_.esp);// TODO: change filename to cmd but cofirm we made the change in load
-    // TODO: TA HELP add 
-    // token = strtok_r (file_name, " ", &save_ptr); // TODO: per ta use this approach
-    // strlcpy(cur->name, file_name, strlen(file_name) +1);
-    // Update the name of process TODO: Add to documentation args.c test 
-    //strlcpy(cur->name, file_name, strlen(file_name) +1);
+    // Load the executable with arguments 
+    success = load(args->file_name, args->file_args, &if_.eip, &if_.esp);
 
-    /* If load failed, quit. */
-    //palloc_free_page(cmd); // TODO confirm we made all changes in load 
+    /* If load failed signal the parent and quit. */
     if (!success) {
         log(L_ERROR, "start_process: Failed to load executable for thread %d", cur->tid);
-        // Initialize semaphore for signaling
-        // sema_up(&launched);// TODO: PER TA delete
-        // sema_up(&cur->sema_wait);// TODO: TA HELP add 
+        // Help from TA in regards to the process of semaphores 
+        sema_up(&cur->sema_wait);// TODO: TA HELP add  // Signal to parent that the loading succeeded
         thread_exit();
     }
-    cur->load_success = true;
-    // Initialize semaphore for signaling
-    // sema_up(&cur->sema_wait);
-    // sema_up(&launched);// TODO: PER TA delete
+    cur->load_success = true; // Help from TA that we need to Mark the process successfully loaded 
+
     log(L_TRACE, "start_process: Thread %d signaling parent and starting user program", cur->tid);
     
-
-
     /* Start the user process by simulating a return from an
      * interrupt, implemented by intr_exit (in
      * threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -223,51 +153,62 @@ start_process(void *args_ptr)
 int
 process_wait(tid_t child_tid UNUSED)
 {
-    // sema_down(&exiting); // TODO:PER TA delete 
+    // Help from the Ta with the following with semaphores and the process of threads with semaphores 
 
-    // TODO:PER TA add start
+    // Get the current thread and the child thread by TID 
     struct thread *t, *cur;
-    t = get_thread_by_tid(child_tid); // i am using struct thread *get_thread_by_tid(tid_t tid);
-    sema_down(&t->sema_wait);
-    int ret = t->exitStatus;
-    sema_up(&t->sema_exit);
-    t->is_waited_on = true;
-    return ret;
+    t = get_thread_by_tid(child_tid); // Retrieves the thread corresponding to the given tid
+    // Handle if thread is not found // TODO: when I add validation syn-write fails
+    //if (t == NULL) {
+    //    return -1; // Return -2 if the thread is not found 
+    //}
+
+    // Wait for the thread to signal it has exited 
+    sema_down(&t->sema_wait); // Wait for the child to finish 
+    // Retrieve the exit status of the child thread
+    int ret = t->exitStatus; // Store teh childs exit status 
+    // Signal the parents acknowledgement of the childs exit 
+    sema_up(&t->sema_exit); // Notify the child that the parent is done waiting 
+    // Mark the child thread as waiting to prevent race conditions
+    t->is_waited_on = true; // Prevents future calls to wait for this thread
+    return ret; // Return the childs exit status 
 }
 
 /* Free the current process's resources. */
 void
 process_exit(void)
-{   // TODO: add per TA
-    struct thread *cur = thread_current();
+{   // Completed with the help of the TA explanation of the code with threads and semaphores and init.c 
+    struct thread *cur = thread_current(); // Retrieve the current code 
     log(L_TRACE, "process_exit: Thread %d exiting", cur->tid);
 
-    // // Notify parent process
+    // Notify parent process
     // sema_up(&cur->sema_exit);
     
     uint32_t *pd;
-    // TODO: per ta add 
-    // printf("%s: exit(%d\n", cur->name, cur->exitStatus);
-    sema_up(&cur->sema_wait);
-    sema_down(&cur->sema_exit);
+
+    // Notify parent process - order matters 
+    sema_up(&cur->sema_wait); //  Signal to parent that the thread is exiting 
+    
+    // Wait for the parent to acknowledge the childs termination 
+    sema_down(&cur->sema_exit);  // Ensures the parent has finished processing the thread 
 
     /* Destroy the current process's page directory and switch back
      * to the kernel-only page directory. */
-    pd = cur->pagedir;
+    pd = cur->pagedir; // Retrieves teh current process page directory 
     if (pd != NULL) {
-        /* Correct ordering here is crucial.  We must set
-         * cur->pagedir to NULL before switching page directories,
-         * so that a timer interrupt can't switch back to the
-         * process page directory.  We must activate the base page
-         * directory before destroying the process's page
+        /** Correct ordering here is crucial.  
+         * We must set cur->pagedir to NULL before switching page directories,
+         *      (so that a timer interrupt can't switch back to the process page 
+         *        directory. )
+         * Activate the base page directory before destroying the process's page
          * directory, or our active page directory will be one
          * that's been freed (and cleared). */
-        cur->pagedir = NULL;
-        pagedir_activate(NULL);
-        pagedir_destroy(pd);
+        cur->pagedir = NULL; // NUllify the current threads page directory 
+        pagedir_activate(NULL); // Activate the kernel only page directory 
+        pagedir_destroy(pd); // Free the memory allocated for the page directory 
     }
-    // sema_up(&exiting); // TODO: per ta delete 
-    sema_up(&cur->sema_exit); // TODO: per ta add
+
+    sema_up(&cur->sema_exit); // TODO: per ta exit not launch
     log(L_TRACE, "process_exit: Thread %d cleanup complete", cur->tid);
 }
 
@@ -348,9 +289,7 @@ struct Elf32_Phdr {
 #define PF_W 2 /* Writable. */
 #define PF_R 4 /* Readable. */
 
-static bool setup_stack(const char *file_name, char *args, void **esp)
-;// TODO: Documentation args.c test added const char cmd to setup stack
-
+static bool setup_stack(const char *file_name, char *args, void **esp);
 static bool validate_segment(const struct Elf32_Phdr *, struct file *);
 static bool load_segment(struct file *file, off_t ofs, uint8_t *upage, uint32_t read_bytes, uint32_t zero_bytes, bool writable);
 
@@ -368,7 +307,7 @@ load(char *file_name_ptr, char *file_args, void(**eip) (void), void **esp) // ch
     off_t file_ofs;
     bool success = false;
     int i;
-    char *file_name; // TODO: Dcocumentation args.c testcheck to see if I keep this
+    char *file_name; // TODO: documentation args.c testcheck to see if I keep this
 
     //Initialize stdin file struct (fd 0)
     stdin_file.inode = NULL;        //No actual inode
@@ -406,7 +345,7 @@ load(char *file_name_ptr, char *file_args, void(**eip) (void), void **esp) // ch
 
     /* Open executable file. */
     // TODO: tokenize cmdstring and get the first token as filename
-    file_name = file_name_ptr;//Need to change later //  TODO : Documenation added args.c test is this const char ? need to change later 
+    file_name = file_name_ptr;//Need to change later //  TODO : documentation added args.c test is this const char ? need to change later 
     file = filesys_open(file_name); // keeping filename because it is a file we are openings. 
     if (file == NULL) {
         printf("load: %s: open failed\n", file_name);
@@ -463,7 +402,7 @@ load(char *file_name_ptr, char *file_args, void(**eip) (void), void **esp) // ch
                      * Read initial part from disk and zero the rest. */
                     read_bytes = page_offset + phdr.p_filesz;
                     zero_bytes = (ROUND_UP(page_offset + phdr.p_memsz, PGSIZE)
-                                  - read_bytes);
+                        - read_bytes);
                 } else {
                     /* Entirely zero.
                      * Don't read anything from disk. */
@@ -471,7 +410,7 @@ load(char *file_name_ptr, char *file_args, void(**eip) (void), void **esp) // ch
                     zero_bytes = ROUND_UP(page_offset + phdr.p_memsz, PGSIZE);
                 }
                 if (!load_segment(file, file_page, (void *)mem_page,
-                                  read_bytes, zero_bytes, writable)) {
+                    read_bytes, zero_bytes, writable)) {
                     goto done;
                 }
             } else {
@@ -569,7 +508,7 @@ validate_segment(const struct Elf32_Phdr *phdr, struct file *file)
  * or disk read error occurs. */
 static bool
 load_segment(struct file *file, off_t ofs, uint8_t *upage,
-             uint32_t read_bytes, uint32_t zero_bytes, bool writable)
+    uint32_t read_bytes, uint32_t zero_bytes, bool writable)
 {
     ASSERT((read_bytes + zero_bytes) % PGSIZE == 0);
     ASSERT(pg_ofs(upage) == 0);
@@ -615,19 +554,18 @@ load_segment(struct file *file, off_t ofs, uint8_t *upage,
 /* Create a minimal stack by mapping a zeroed page at the top of
  * user virtual memory. 
  * add a char cmdstring if a command string update the protype char *cmd
- * go to setup called, it is called in load file name. chnage it to char *cmdstring 
+ * go to setup called, it is called in load file name. change it to char *cmdstring 
  * make note to self tokenize cmdstring and get the first token as file name
  * when we open a file we are not going to open the whole string
- 
  */
 static bool
 setup_stack(const char *file_name, char *args, void **esp)
 {
-    uint8_t *kpage;
+    uint8_t *kpage; // Kernel page for the stack 
     bool success = false;
-    char *argv[128];//argument to store pointers array
+    char *argv[128]; //Array of argument to store pointers 
     int argc; // Argument count 
-    const char *arg;
+    const char *arg; // Current argument 
     int i;
     size_t len;
 
@@ -639,37 +577,39 @@ setup_stack(const char *file_name, char *args, void **esp)
         success = install_page(((uint8_t *)PHYS_BASE) - PGSIZE, kpage, true);
         if (success) {
             log(L_TRACE, "setup_stack: argc=%d, argv[0]=%p, argv[1]=%p", argc, argv[0], argc > 1 ? argv[1] : NULL);
-            *esp = PHYS_BASE;
+            *esp = PHYS_BASE; // Set the stack pointer to the top of user memory 
             //hex_dump((uintptr_t)*esp, *esp, PHYS_BASE - *esp, true);
-            argc = 0;
-            arg = file_name;
+            argc = 0; // Set the argument count to zero. 
+            arg = file_name; // Start with file name 
             // printf("From setup_stack, filename is %s; args are %s\n", file_name, args);
             i = 0;
+            // Push each argument onto the stack 
             while (arg != NULL){
-                len = strlen(arg) + 1; //  INcludes null terminator 
-                argv[i] = arg; 
-                *esp -= len;
-                memcpy(*esp, arg, len); // copy argument to stack
-                argv[i] = *esp;
-                i++;
+                len = strlen(arg) + 1;  //  Includes null terminator 
+                argv[i] = arg;          
+                *esp -= len;            // Move the stack pointer 
+                memcpy(*esp, arg, len); // Copy the argument to the stack
+                argv[i] = *esp;         
+                i++;                    // Note to self we can add argv[argc++] = *esp 
                 argc++;
-                arg = strtok_r(NULL, " ", &args); //  added if statement for validation 
+                arg = strtok_r(NULL, " ", &args); // TODO: Need to add if statement for validation 
             }
             argv[i] = NULL;
-            // printf("argc = %d\n", argc);
+            // printf("argc = %d\n", argc); // TODO: Delete for clean up
             
-            //Push arguments onto the stack in reverse order
+            // Push arguments onto the stack in reverse order
             for(i = argc - 1; i >= 0; i--){
-                *esp -= strlen(argv[i]) + 1; //move the stack pointer down
-                memcpy(*esp, argv[i], strlen(argv[i]) + 1); //copy argument to the stack
-                argv[i] = *esp; //save the address of the argument
+                *esp -= strlen(argv[i]) + 1; // Move the stack pointer down
+                memcpy(*esp, argv[i], strlen(argv[i]) + 1); // Copy argument to the stack
+                argv[i] = *esp; // Save the address of the argument
             }
-            //Would align the stack (align to 4 byte boundary)
+            // Word- align the stack (align to 4 byte boundary)
             while((uintptr_t)*esp % 4 != 0){
                 *esp -= 1;
                 *(uint8_t *)*esp = 0;
             }
-            //push the addresses of argv
+
+            // Push the addresses of argv
             *esp -= sizeof(char *);
             *(char **)*esp = NULL;
 
@@ -678,20 +618,20 @@ setup_stack(const char *file_name, char *args, void **esp)
                 *(char **)*esp = argv[i];//push each arguments address
             }
 
-            //Push argv the address argv[]
+            // Push argv the address argv[]
             char **argv_ptr = *esp;
             *esp -= sizeof(char **);
             *(char ***)*esp = argv_ptr;
 
-            //push argc
+            // push argc
             *esp -= sizeof(char **);
             *(int *)*esp = argc;
 
-            //push a fake return address
+            // push a fake return address
             *esp -= sizeof(void *);
             *(void **)*esp = 0;
 
-            // palloc_free_page(cmd_copy);
+            // palloc_free_page(cmd_copy); // TODO: Delete Clean up
 
         } else {
             palloc_free_page(kpage);
@@ -746,7 +686,7 @@ int fd_alloc(struct file *file) {
 // struct thread *get_thread_by_tid(tid_t tid)
 // {
 //     struct list_elem * e; 
-//     // iterat through the global all list to find the thread with matching tid
+//     // iterate through the global all list to find the thread with matching tid
 //     for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)){
 //         struct  thread *t = list_entry(e, struct thread, allelem);
 //         if (t->tid == tid) {
