@@ -21,13 +21,14 @@ David Y. Cho <dychokis@utexas.edu> <dyc325>
 
 1. Introduction to Algorithms (3rd edition) for tacks,threads, and FD for 
     the setup_stack function and for code in syscall.
-2. The Design and Anaylsis of Algorithms - stacks,threads, and FD for the 
+2. The Design and Analysis of Algorithms - stacks,threads, and FD for the 
     setup_stack function and for code in syscall.
 3. CSE 251 BYUI Class material on Stacks,threads, and FD for the setup_stack 
    function and for code in syscall. 
-4. Pintos documentiation and lecture notes for project implementations.
+4. Pintos documentation and lecture notes for project implementations.
 5. Yerraballi, Ramesh. (2023, Feb 10). Pintos Userprog Miscellania [Video].
     YouTube. https://www.youtube.com/watch?v=2QfVTF2C-No
+6. Bharath Venkatakrishnan - Consulted with regarding semaphore and thread process. 
 
                            ARGUMENT PASSING
                            ================
@@ -38,19 +39,12 @@ David Y. Cho <dychokis@utexas.edu> <dyc325>
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
 1. args_struct - 
-    stryct args_struct {
+    struct args_struct {
         char * file_name; // stores the executable name 
         char * file_args; // stores teh command line arguments.
     }
     Purpose: To pass a file name and arguments as a single structure to start_process
-2. launched (semaphore): 
-    struct semaphore launched;
-    Purpose: this is used to synchronize process execution to ensure that the 
-    parent waits for the child process to load before proceeding.
-3. Exiting (semaphore) 
-    struct semaphore exiting; 
-    Purpose: this semaphore is used to synchornize process exit and wait 
-    system calls to handle termination properly.
+2. 
 
 ---- ALGORITHMS ----
 
@@ -73,7 +67,7 @@ page (4kb)and we check the remaining stack space while pushing arguments.
 
 >> A3: Why does Pintos implement strtok_r() but not strtok()?
 Pintos implements strtok_r because is is a reentrant version of strtok 
-which is safer for a multithreaded environment. Sttrok uses a shared internal 
+which is safer for a multithreaded environment. Strtok uses a shared internal 
 state making it unsafe to use multiple threads or processes concurrently. 
 
                              SYSTEM CALLS
@@ -84,8 +78,10 @@ state making it unsafe to use multiple threads or processes concurrently.
 >> B1: Copy here the declaration of each new or changed `struct' or
 >> `struct' member, global or static variable, `typedef', or
 >> enumeration.  Identify the purpose of each in 25 words or less.
-No new struct, global or static variable, or enumeration added yet.
-
+Changes in struct thread: 
+fd_table, sema_wait, sema_exit, exitStatus, children, and exec_File.
+Purpose: Handle file descriptors, synchronization and parent child process relationships. 
+struct fdtable: Tracks open file descriptors within a process, isolating usage between processes. 
 >> B2: Describe how file descriptors are associated with open files.
 >> Are file descriptors unique within the entire OS or just within a
 >> single process?
@@ -100,7 +96,7 @@ have its own file descriptor table, preventing conflicts between processes.
 At the moment we are using get_user and put_user functions to safely
 read and write to user memory. These functions use inline assembly along
 with exception handling to identify and manage invalid memory access. This
-process helps to prevent kernal crashes. 
+process helps to prevent kernel crashes. 
 
 >> B4: Suppose a system call causes a full page (4,096 bytes) of data
 >> to be copied from user space into the kernel.  What is the least
@@ -108,18 +104,18 @@ process helps to prevent kernal crashes.
 >> (e.g. calls to pagedir_get_page()) that might result?  What about
 >> for a system call that only copies 2 bytes of data?  Is there room
 >> for improvement in these numbers, and how much?
-If we are copying a full page of memory, we will need to make at least one 
-call to pagedir_get_page(), provided that the entire page is mapped. The
-maximum number of calls can reach up to 4096 if the copying frequently 
-crosses page boundaries, as a separate call is needed for each byte. 
-For smaller 2 byte copy, the minmimum remains one call, whuile the max is
-two. Checking the mapping for larger memory blocks at once will 
-enhance the efficiency. 
-
+1. Full Page Copy (4096):
+    - Minimum: 1 call to pagedir_get_page.
+    - Maximum: 4096 calls if copying byte by byte across pages.
+2. 2-Byte Copy: 
+    - Minimum: 1 call .  
+    - Maximum: 2 calls if byte span page boundaries. 
+3. Optimization: 
+    - Batch validation reduces overhead for large memory regions. 
 
 >> B5: Briefly describe your implementation of the "wait" system call
 >> and how it interacts with process termination.
-The wait function uses our exiting sempahore for synchronization. The 
+The wait function uses our exiting semaphore for synchronization. The 
 parent process will block this semaphore until the child process calls
 sema_up in the process exit function. This will ensure that the  parent 
 waits for the child to terminate and allows the parent to 
@@ -138,6 +134,9 @@ retrieve the childs exit status.
 >> allocated resources (locks, buffers, etc.) are freed?  In a few
 >> paragraphs, describe the strategy or strategies you adopted for
 >> managing these issues.  Give an example.
+Centralized validation using validate_user_pointer.
+sys_exit terminates processes immediately on invalid pointers. 
+
 Good documentation practices (e.g., adding comments) to make clear 
 where the primary function of the code helps with avoiding obscuring
 it with other error handling code. Future work is needed for freeing
@@ -149,7 +148,8 @@ allocated resources.
 >> fails, so it cannot return before the new executable has completed
 >> loading.  How does your code ensure this?  How is the load
 >> success/failure status passed back to the thread that calls "exec"?
-Future work is needed for this still.
+Parent waits on sema_wait for the child to signal load completion. 
+The child sets load_success to indicate status. 
 
 >> B8: Consider parent process P with child process C.  How do you
 >> ensure proper synchronization and avoid race conditions when P
@@ -157,7 +157,17 @@ Future work is needed for this still.
 >> that all resources are freed in each case?  How about when P
 >> terminates without waiting, before C exits?  After C exits?  Are
 >> there any special cases?
-To use wait() we employ the exiting semaphore to synchorinze the parent and child
+
+1. Before Child Exits:
+    - Parent blocks on sema_wait
+2. After Child Exits:
+    - Parent retrieves exit status and signals sema_exit. 
+3. Parent Terminates: 
+    - Child checks parent state during termination and cleans resources.
+4. Special Cases: 
+    - Double wait calls return -1. 
+
+To use wait() we employ the exiting semaphore to synchronized the parent and child
 process. If the parent calls wait() before the child exits, it blocks the semaphore.
 Same if the child exits first, it signals the semaphore allowing the parent to proceed.
 All resources are freed, which prevents a memory leak and ensures consistent behavior. 
@@ -168,19 +178,25 @@ All resources are freed, which prevents a memory leak and ensures consistent beh
 >> B9: Why did you choose to implement access to user memory from the
 >> kernel in the way that you did?
 We selected inline assembly using get user and put user for improved efficiency and 
-precise exception handling. This will prevent crashes andd allow safe access to user
-memory without requring significant modifications to the kernel.
+precise exception handling. This will prevent crashes and allow safe access to user
+memory without requiring significant modifications to the kernel.
 
 
 >> B10: What advantages or disadvantages can you see to your design
 >> for file descriptors?
-Our design for file descriptors is not yet complete as we would like
-to implement a file descriptor table.
+
+1. Advantages: 
+    - Process isolated file descriptors prevent interference. 
+    - Fixed size reduces complexity.
+2. Disadvantages: 
+    - Limited scalability due to static size. 
+    
 >> B11: The default tid_t to pid_t mapping is the identity mapping.
 >> If you changed it, what advantages are there to your approach?
 We kept the default mapping for simplicity. If we implement a separate mapping it
 will allow more control over process identifiers but would require additional
-synchorinzation and lookup mechanisms. 
+synchronization and lookup mechanisms. 
+
 
                            SURVEY QUESTIONS
                            ================

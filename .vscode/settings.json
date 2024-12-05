@@ -71,6 +71,8 @@
     "Ehdr",
     "ehsize",
     "endfunc",
+    "fdtable",
+    "fileno",
     "globl",
     "KCSEG",
     "kpage",
@@ -79,6 +81,7 @@
     "movl",
     "movzbl",
     "offsetof",
+    "pagedir",
     "PDBR",
     "PGMASK",
     "PGSIZE",
@@ -90,14 +93,18 @@
     "ptid",
     "ptov",
     "pushl",
+    "sema",
     "shentsize",
     "shnum",
     "shoff",
     "shstrndx",
+    "strtok",
+    "syscall",
     "UCSEG",
     "UDSEG",
     "udst",
-    "Untar"
+    "Untar",
+    "Userprog"
   ],
   "C_Cpp.errorSquiggles": "disabled"
 }
