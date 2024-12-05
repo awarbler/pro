@@ -74,10 +74,12 @@ process_execute(const char *cmd)
         palloc_free_page(cmd_copy);
         return TID_ERROR;
     }
-    // Deny write access to the file and save the reference
+    // Deny write access to the file 
+    file_deny_write(file);
+    //save the file reference to the thread 
     struct thread *cur = thread_current();
     cur->exec_file = file; 
-    file_deny_write(file);
+    
     
     log(L_TRACE, "process_execute: Parsed file_name='%s', file_args='%s'", args.file_name, args.file_args ? args.file_args : "None");
     // Received help from the ta using threads globally and in regards to semaphores we were using sema_init(&launched, 0) sema_init(&exiting, 0);
@@ -101,12 +103,14 @@ process_execute(const char *cmd)
 
     log(L_TRACE, "process_execute: Child thread %d created by parent %d",
         tid, thread_current()->tid);
-    // Free cmd_cpy here after the thread is created
-    palloc_free_page(cmd_copy);
+    
     // Check if the child successfully loaded its executable 
     if (!t->load_success) {
+        // Free cmd_cpy here after the thread is created
+        palloc_free_page(cmd_copy);
         return -1; // Return error if loading failed 
     }
+
     return tid; // Retuns the thread id of the created process
 }
 
@@ -132,8 +136,9 @@ start_process(void *args_ptr)
     /* If load failed signal the parent and quit. */
     if (!success) {
         log(L_ERROR, "start_process: Failed to load executable for thread %d", cur->tid);
+        cur->load_success = false; // Indicates load failure 
         // Help from TA in regards to the process of semaphores 
-        sema_up(&cur->sema_wait);// TODO: TA HELP add  // Signal to parent that the loading succeeded
+        sema_up(&cur->sema_wait);// Signal to parent that the loading succeeded
         thread_exit();
     }
     cur->load_success = true; // Help from TA that we need to Mark the process successfully loaded 

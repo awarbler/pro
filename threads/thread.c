@@ -635,7 +635,7 @@ uint32_t thread_stack_ofs = offsetof(struct thread, stack);
 struct thread *get_thread_by_tid(tid_t tid)
 {
     struct list_elem * e; 
-    // iterat through the global all list to find the thread with matching tid
+    // iterate through the global all list to find the thread with matching tid
     for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)){
         struct  thread *t = list_entry(e, struct thread, allelem);
         if (t->tid == tid) {
