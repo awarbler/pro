@@ -162,7 +162,10 @@ process_wait(tid_t child_tid UNUSED)
     //if (t == NULL) {
     //    return -1; // Return -2 if the thread is not found 
     //}
-
+    // check if the child process has already been waited on 
+    if (t->is_waited_on) {
+        return -1; // Process already waited on 
+    }
     // Wait for the thread to signal it has exited 
     sema_down(&t->sema_wait); // Wait for the child to finish 
     // Retrieve the exit status of the child thread

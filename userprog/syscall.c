@@ -47,9 +47,13 @@ syscall_init(void)
 static void 
 syscall_handler(struct intr_frame *f UNUSED) 
 {
-    int * usp = f->esp;  // Extracts teh user stack pointer from the interrupt frame
     // Validate user pointer to avoid accessing invalid memory and ensures it is within the suer address space
-    validate_user_pointer(usp); 
+    validate_user_pointer(f->esp); 
+
+    int * usp = f->esp;  // Extracts teh user stack pointer from the interrupt frame
+    
+        // Validate user pointer to avoid accessing invalid memory and ensures it is within the suer address space
+    validate_user_pointer(usp);
 
     // Get the system call number from the stack 
     int callno = *usp;
