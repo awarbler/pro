@@ -80,7 +80,7 @@ static void schedule(void);
 void thread_schedule_tail(struct thread *prev);
 static tid_t allocate_tid(void);
 
-// TODO: AJW ADDED  lets consider taking out
+// Helper function to find a thread by its thread ID(tid)
 struct thread *get_thread_by_tid(tid_t tid);
 
 /* Initializes the threading system by transforming the code
@@ -218,20 +218,22 @@ thread_create(const char *name, int priority,
 
     /* Add to run queue. */
     thread_unblock(t);
-    // TODO: TA HELP start SET THIS ALL UP
 #ifdef USERPROG
-    sema_init(&t->sema_wait, 0);
-    sema_init(&t->sema_exit, 0);
-    t->exitStatus = RET_STATUS_INIT;
 
-    list_init(&t->children);
+    // TA explained synchronization, semaphores and implementing globally 
+
+    sema_init(&t->sema_wait, 0); // Initialize semaphore for parent to wait on the child 
+    sema_init(&t->sema_exit, 0); // Initialize semaphore for child to wait on the parent 
+    t->exitStatus = RET_STATUS_INIT;// Initialize the threads exit status 
+
+    list_init(&t->children); // Initialize the children list for the thread 
     
     // t->exited = false; 
-    t->is_waited_on = false;
-    t->parent =thread_current();
+    t->is_waited_on = false; // Mark the thread as not yet waited on 
+    t->parent =thread_current(); // Set the parent of the new thread 
     if (thread_current() != initial_thread)
-    list_push_back(&thread_current()->children, &t->child_elem);
-    // TODO: TA HELP end
+    list_push_back(&thread_current()->children, &t->child_elem); // Add the thread to the parents children list 
+
 #endif
     return tid;
 }
@@ -307,8 +309,8 @@ thread_tid(void)
     return thread_current()->tid;
 }
 
-/* Deschedules the current thread and destroys it.  Never
- * returns to the caller. */
+/* Deschedules the current thread and destroys it.  
+    Never returns to the caller. */
 void
 thread_exit(void)
 {
@@ -316,16 +318,14 @@ thread_exit(void)
     ASSERT(!intr_context());
 
 #ifdef USERPROG
-    // TODO: TA HELP start
-    struct list_elem *e;
-    struct thread *cur = thread_current();
-    sema_up(&cur->sema_wait);
-    // TODO: TA HELP end
+    // TA explained Parent child relationship in threads and clean up 
+    struct list_elem *e; 
+    struct thread *cur = thread_current(); 
+    sema_up(&cur->sema_wait); // Signals to the parent that the thread is exiting 
     process_exit();
-    // TODO: TA HELP start
+    // Remove the thread from the parents children list if necessary 
     if(cur->parent != NULL && cur->parent != initial_thread)
     list_remove(&cur->child_elem);
-    // TODO: TA HELP end
 #endif
 
     /* Remove thread from all threads list, set our status to dying,
@@ -507,8 +507,8 @@ init_thread(struct thread *t, const char *name, int priority)
     t->magic = THREAD_MAGIC;
 
     // Initialize locks for children 
-    lock_init(&t->children_lock);
-    list_init(&t->children);
+    lock_init(&t->children_lock); // Initialize a lock to manage access to the child list
+    list_init(&t->children); // Initialize the list of children 
 
     
     old_level = intr_disable();
@@ -631,7 +631,7 @@ allocate_tid(void)
  * Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof(struct thread, stack);
 
-// helper function 
+// helper function to find a thread by its thread id (TID)
 struct thread *get_thread_by_tid(tid_t tid)
 {
     struct list_elem * e; 
@@ -639,7 +639,7 @@ struct thread *get_thread_by_tid(tid_t tid)
     for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)){
         struct  thread *t = list_entry(e, struct thread, allelem);
         if (t->tid == tid) {
-            return t; 
+            return t; // Return the matching thread 
         }
     }
     return NULL; // Return null if no thread matches 
