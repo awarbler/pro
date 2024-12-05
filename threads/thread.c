@@ -220,17 +220,17 @@ thread_create(const char *name, int priority,
     thread_unblock(t);
     // TODO: TA HELP start SET THIS ALL UP
 #ifdef USERPROG
-    //sema_init(&t->sema_wait, 0);
-    //sema_init(&t->sema_exit, 0);
-    //t->ret_status = RET_STATUS_INIT;
+    sema_init(&t->sema_wait, 0);
+    sema_init(&t->sema_exit, 0);
+    t->exitStatus = RET_STATUS_INIT;
 
-    //list_init(&t->children);
+    list_init(&t->children);
     
-    //t->exited = false; 
-    //t->waited = false;
-    // t->parent =thread_current();
-    // if (thread_current() != initial_thread)
-    // list_push_back(&thread_current()->children, &t->child_elem);
+    // t->exited = false; 
+    t->is_waited_on = false;
+    t->parent =thread_current();
+    if (thread_current() != initial_thread)
+    list_push_back(&thread_current()->children, &t->child_elem);
     // TODO: TA HELP end
 #endif
     return tid;
@@ -317,14 +317,14 @@ thread_exit(void)
 
 #ifdef USERPROG
     // TODO: TA HELP start
-    //struct list_elem *e;
-    //struct thread *cur = thread_current();
-    //sema_up(&cur->sema_wait);
+    struct list_elem *e;
+    struct thread *cur = thread_current();
+    sema_up(&cur->sema_wait);
     // TODO: TA HELP end
     process_exit();
     // TODO: TA HELP start
-    //if(cur->parent-> != NULL && cur->parent != initial_thread)
-    //list_remove(&cur->child_elem);
+    if(cur->parent != NULL && cur->parent != initial_thread)
+    list_remove(&cur->child_elem);
     // TODO: TA HELP end
 #endif
 
