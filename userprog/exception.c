@@ -162,9 +162,9 @@ page_fault(struct intr_frame *f)
     page_fault_cnt++;
 
     /* Determine cause. */
-    not_present = (f->error_code & PF_P) == 0;
-    write = (f->error_code & PF_W) != 0;
-    user = (f->error_code & PF_U) != 0;
+    //not_present = (f->error_code & PF_P) == 0;
+    //write = (f->error_code & PF_W) != 0;
+    //user = (f->error_code & PF_U) != 0;
 
     /* Handle the fault appropriately */
     if (not_present) {

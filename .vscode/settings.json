@@ -65,26 +65,33 @@
     "tss.h": "c"
   },
   "cSpell.words": [
+    "Bochs",
     "Deschedules",
     "Ehdr",
     "ehsize",
+    "globl",
     "kpage",
     "memsz",
     "mlfqs",
     "movzbl",
+    "PDBR",
     "PGMASK",
     "PGSIZE",
     "phentsize",
     "phnum",
     "phoff",
+    "PRDS",
     "ptid",
+    "ptov",
+    "pushl",
     "shentsize",
     "shnum",
     "shoff",
     "shstrndx",
     "UCSEG",
     "UDSEG",
-    "udst"
+    "udst",
+    "Untar"
   ],
   "C_Cpp.errorSquiggles": "disabled"
 }
