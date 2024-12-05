@@ -82,7 +82,7 @@ syscall_handler(struct intr_frame *f UNUSED)
             //f->eax = sys_exec((const char *)*(usp + 1));
             break;
         case SYS_WAIT:
-            //f->eax = sys_wait(*(usp + 1));
+            f->eax = sys_wait(*(usp + 1));
             break;
         case SYS_CREATE:
             f->eax = sys_create((const char *)*(usp + 1), *(usp + 2));
@@ -183,8 +183,8 @@ void sys_exit(int status){
     cur->exitStatus = status;// Set the exit status for the current process
     printf("%s: exit(%d)\n", cur->name, status); // LOG progress of exit status 
     // where do we get args-none m where do we find the name every process has to have a name 
-    thread_exit(); // Terminate the thread 
     // process_exit();
+    thread_exit(); // Terminate the thread
 }
 /*Creates a new file called file initially initial_size bytes in size. 
 Returns true if successful, false otherwise. Creating a new file does not open it:
@@ -325,7 +325,8 @@ tid_t sys_exec (const char *cmd_line) {
     return tid; // Returns the new process id 
 }
 int sys_wait(tid_t tid) {
-    return process_wait(tid);
+    int status = process_wait(tid);
+    return status;
 }
 /* bool remove (const char *file) Deletes the file called file. 
 Returns true if successful, false otherwise. A file may be removed 
