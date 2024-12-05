@@ -108,6 +108,7 @@ struct thread {
        // add a file descriptor table
     // TODO: clean up what we are not using
     bool is_waited_on; // flag to indicate if the thread is being waited on 
+    bool load_success;
     struct thread *parent; // Pointer to the parent thread 
     tid_t ptid; // parents tid
     struct semaphore sema_wait; 
