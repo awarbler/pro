@@ -71,6 +71,7 @@
     "kpage",
     "memsz",
     "mlfqs",
+    "movzbl",
     "PGMASK",
     "PGSIZE",
     "phentsize",
@@ -82,7 +83,8 @@
     "shoff",
     "shstrndx",
     "UCSEG",
-    "UDSEG"
+    "UDSEG",
+    "udst"
   ],
   "C_Cpp.errorSquiggles": "disabled"
 }
