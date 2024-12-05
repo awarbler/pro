@@ -40,6 +40,7 @@ static thread_func start_process NO_RETURN;
 static bool load(char *file_name_ptr, char *file_args, void(**eip) (void), void **esp);
 
 int fd_alloc(struct file *file);
+// struct thread *get_thread_by_tid(tid_t tid);
 
 struct semaphore launched;
 struct semaphore exiting;
@@ -150,6 +151,10 @@ process_execute(const char *cmd)
         tid, thread_current()->tid);
     // Free cmd_cpy here after the thread is created
     palloc_free_page(cmd_copy);
+
+    if (!t->load_success) {
+        return -1;
+    }
     return tid; // retruns the thread id of the created process
 }
 
@@ -185,10 +190,12 @@ start_process(void *args_ptr)
         log(L_ERROR, "start_process: Failed to load executable for thread %d", cur->tid);
         // Initialize semaphore for signaling
         // sema_up(&launched);// TODO: PER TA delete
-        sema_up(&cur->sema_wait);// TODO: TA HELP add 
+        // sema_up(&cur->sema_wait);// TODO: TA HELP add 
         thread_exit();
     }
+    cur->load_success = true;
     // Initialize semaphore for signaling
+    // sema_up(&cur->sema_wait);
     // sema_up(&launched);// TODO: PER TA delete
     log(L_TRACE, "start_process: Thread %d signaling parent and starting user program", cur->tid);
     
@@ -224,10 +231,8 @@ process_wait(tid_t child_tid UNUSED)
     sema_down(&t->sema_wait);
     int ret = t->exitStatus;
     sema_up(&t->sema_exit);
-    t->is_waited_on = true; 
+    t->is_waited_on = true;
     return ret;
-     // TODO:PER TA add end
-    // return -1; 
 }
 
 /* Free the current process's resources. */
@@ -237,7 +242,7 @@ process_exit(void)
     struct thread *cur = thread_current();
     log(L_TRACE, "process_exit: Thread %d exiting", cur->tid);
 
-    // Notify parent process
+    // // Notify parent process
     // sema_up(&cur->sema_exit);
     
     uint32_t *pd;
@@ -737,5 +742,19 @@ int fd_alloc(struct file *file) {
 
     return -1;//No available file descriptor
 }
+
+// struct thread *get_thread_by_tid(tid_t tid)
+// {
+//     struct list_elem * e; 
+//     // iterat through the global all list to find the thread with matching tid
+//     for (e = list_begin(&all_list); e != list_end(&all_list); e = list_next(e)){
+//         struct  thread *t = list_entry(e, struct thread, allelem);
+//         if (t->tid == tid) {
+//             return t; 
+//         }
+//     }
+//     return NULL; // Return null if no thread matches 
+
+// }
 
 
