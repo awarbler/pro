@@ -184,7 +184,7 @@ void sys_exit(int status){
     printf("%s: exit(%d)\n", cur->name, status); // LOG progress of exit status 
     // where do we get args-none m where do we find the name every process has to have a name 
     thread_exit(); // Terminate the thread 
-    //process_exit();
+    // process_exit();
 }
 /*Creates a new file called file initially initial_size bytes in size. 
 Returns true if successful, false otherwise. Creating a new file does not open it:
