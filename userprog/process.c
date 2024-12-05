@@ -92,9 +92,9 @@ process_execute(const char *cmd)
     // TODO: per ta delete sema_init(&launched, 0) 
     // TODO: per ta deleteall the way to log(L_TRACE, "process_execute: Creating thread for file_name='%s'", args.file_name);
     // TODO: per ta delete sema_init(&exiting, 0);
-    sema_init(&launched, 0); //t->launched later
+    // sema_init(&launched, 0); //t->launched later
     log(L_TRACE, "process_execute: Creating thread for file_name='%s'", args.file_name);
-    sema_init(&exiting, 0);
+    // sema_init(&exiting, 0);
 
     /* Create a new thread to execute FILE_NAME for the process 
      * args.c test The thread is created to start executing at start_process()*/
@@ -103,47 +103,48 @@ process_execute(const char *cmd)
     if (tid == TID_ERROR) {
         log(L_ERROR, "process_execute: Failed to create thread for command: %s", cmd);
         palloc_free_page(cmd_copy); // Free the allocated page if thread creation fails
-        return tid; // TODO: Delete per ta
+        // printf("maybe i need to delete something below me\n");
+        // return tid; // TODO: Delete per ta
     }
     //TODO: TA suggestion delete 
-    sema_down(&launched);
-    log(L_TRACE, "process_execute: Child thread %d created by parent %d", tid, thread_current()->tid);
-    struct thread *child_thread = get_thread_by_tid(tid);
-    if (child_thread != NULL) {
-        log(L_TRACE, "process_execute: Linking child tid=%d to parent tid=%d", tid, thread_current()->tid);
-        struct thread *cur = thread_current();
-        child_thread->ptid = cur->tid; // set parent tid 
-        if (list_empty(&cur->children)) {
-            list_init(&cur->children);
-        }
-        // Initialize the list 
-        //list_init(&child_thread->child_elem);
-        // Add the child thread to the parents children list 
-        list_push_back(&cur->children, &child_thread->child_elem);
-        // Initialize the childs semaphore 
-        sema_init(&child_thread->sema_wait, 0); // initialize childs semaphore
-        child_thread->is_waited_on = false; // mark as not waited on   
-    }
-    log(L_TRACE, "process_execute: Parent thread %d waiting on child %d", thread_current()->tid, tid);
-    // timeout mechanism 
-    bool success = sema_try_down(&launched);
-    if (!success) {
-        log(L_ERROR, "process_execute: Timeout while waiting for child %d", tid);
-        palloc_free_page(cmd_copy);
-        return TID_ERROR;
-    }
-    log(L_TRACE, "process_execute: Child initialization complete for tid=%d", tid);
+    // sema_down(&launched);
+    // log(L_TRACE, "process_execute: Child thread %d created by parent %d", tid, thread_current()->tid);
+    // struct thread *child_thread = get_thread_by_tid(tid);
+    // if (child_thread != NULL) {
+    //     log(L_TRACE, "process_execute: Linking child tid=%d to parent tid=%d", tid, thread_current()->tid);
+    //     struct thread *cur = thread_current();
+    //     child_thread->ptid = cur->tid; // set parent tid 
+    //     if (list_empty(&cur->children)) {
+    //         list_init(&cur->children);
+    //     }
+    //     // Initialize the list 
+    //     //list_init(&child_thread->child_elem);
+    //     // Add the child thread to the parents children list 
+    //     list_push_back(&cur->children, &child_thread->child_elem);
+    //     // Initialize the childs semaphore 
+    //     sema_init(&child_thread->sema_wait, 0); // initialize childs semaphore
+    //     child_thread->is_waited_on = false; // mark as not waited on   
+    // }
+    // log(L_TRACE, "process_execute: Parent thread %d waiting on child %d", thread_current()->tid, tid);
+    // // timeout mechanism 
+    // bool success = sema_try_down(&launched);
+    // if (!success) {
+    //     log(L_ERROR, "process_execute: Timeout while waiting for child %d", tid);
+    //     palloc_free_page(cmd_copy);
+    //     return TID_ERROR;
+    // }
+    // log(L_TRACE, "process_execute: Child initialization complete for tid=%d", tid);
     //TODO: TA suggestion delete end
     // TODO:add per ta start 
     // Lookup the thread we just created
-    //t = get_thread_by_tid(tid);
-    //if (t == NULL) {
-    //    log(L_ERROR, "process_execute: Failed to locate thread for tid=%d", tid);
-    //    palloc_free_page(cmd_copy);
-    //    return TID_ERROR;
-    //}
+    struct thread *t = get_thread_by_tid(tid);
+    if (t == NULL) {
+       log(L_ERROR, "process_execute: Failed to locate thread for tid=%d", tid);
+       palloc_free_page(cmd_copy);
+       return TID_ERROR;
+    }
     // Wait for the child process to signal it has loaded 
-    //sema_down(&t->sema_wait);
+    sema_down(&t->sema_wait);
     // TODO:add per ta end
     log(L_TRACE, "process_execute: Child thread %d created by parent %d",
         tid, thread_current()->tid);
@@ -183,12 +184,12 @@ start_process(void *args_ptr)
     if (!success) {
         log(L_ERROR, "start_process: Failed to load executable for thread %d", cur->tid);
         // Initialize semaphore for signaling
-        sema_up(&launched);// TODO: PER TA delete
-        //sema_up(&cur->sema_wait);// TODO: TA HELP add 
+        // sema_up(&launched);// TODO: PER TA delete
+        sema_up(&cur->sema_wait);// TODO: TA HELP add 
         thread_exit();
     }
     // Initialize semaphore for signaling
-    sema_up(&launched);// TODO: PER TA delete
+    // sema_up(&launched);// TODO: PER TA delete
     log(L_TRACE, "start_process: Thread %d signaling parent and starting user program", cur->tid);
     
 
@@ -215,18 +216,18 @@ start_process(void *args_ptr)
 int
 process_wait(tid_t child_tid UNUSED)
 {
-    sema_down(&exiting); // TODO:PER TA delete 
+    // sema_down(&exiting); // TODO:PER TA delete 
 
     // TODO:PER TA add start
-    //struct thread *t, *cur;
-    // t = thread_lookup (child_tid); // i am using struct thread *get_thread_by_tid(tid_t tid);
-    // sema_down(&t->sema_wait);
-    // int ret = t->ret_status;
-    // sema_up(&t->sema_exit);
-    // t->wait = true; 
-    // return ret;
+    struct thread *t, *cur;
+    t = get_thread_by_tid(child_tid); // i am using struct thread *get_thread_by_tid(tid_t tid);
+    sema_down(&t->sema_wait);
+    int ret = t->exitStatus;
+    sema_up(&t->sema_exit);
+    t->is_waited_on = true; 
+    return ret;
      // TODO:PER TA add end
-    return -1; 
+    // return -1; 
 }
 
 /* Free the current process's resources. */
@@ -235,15 +236,15 @@ process_exit(void)
 {   // TODO: add per TA
     struct thread *cur = thread_current();
     log(L_TRACE, "process_exit: Thread %d exiting", cur->tid);
-//
+
     // Notify parent process
-    //sema_up(&cur->sema_exit);
+    // sema_up(&cur->sema_exit);
     
     uint32_t *pd;
     // TODO: per ta add 
-    //printf("%s: exit(%d\n", cur->name, cur->ret_status);
-    //sema_up(&cur->sema_wait);
-    //sema_down(&cur->sema_exit);
+    // printf("%s: exit(%d\n", cur->name, cur->exitStatus);
+    sema_up(&cur->sema_wait);
+    sema_down(&cur->sema_exit);
 
     /* Destroy the current process's page directory and switch back
      * to the kernel-only page directory. */
@@ -260,8 +261,8 @@ process_exit(void)
         pagedir_activate(NULL);
         pagedir_destroy(pd);
     }
-    sema_up(&exiting); // TODO: per ta delete 
-    //sema_up(&cur->sema_exit); // TODO: per ta add
+    // sema_up(&exiting); // TODO: per ta delete 
+    sema_up(&cur->sema_exit); // TODO: per ta add
     log(L_TRACE, "process_exit: Thread %d cleanup complete", cur->tid);
 }
 
