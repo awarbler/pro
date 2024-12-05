@@ -124,6 +124,7 @@ struct thread {
     /* Owned by userprog/process.c. */
     uint32_t *pagedir; /* Page directory. */
     int exitStatus; // Holds exit status of a thread as a schild so my parent can reap it
+    struct file *exec_file; // reference to the currently executing file 
 #endif
 
     /* Owned by thread.c. */

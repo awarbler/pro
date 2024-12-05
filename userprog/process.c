@@ -70,15 +70,28 @@ process_execute(const char *cmd)
     
     // Tokenize the command string into file name and arguments 
     args.file_name = strtok_r(cmd_copy, " ", &args.file_args);
+
+    // Open the executable file 
+    struct file *file = filesys_open(args.file_name);
+    if(file == NULL) {
+        printf("load: %s: open failed\n", args.file_name);
+        palloc_free_page(cmd_copy);
+        return TID_ERROR;
+    }
+    // Deny write access to the file and save the reference
+    struct thread *cur = thread_current();
+    cur->exec_file = file; 
+    file_deny_write(file);
+    
     log(L_TRACE, "process_execute: Parsed file_name='%s', file_args='%s'", args.file_name, args.file_args ? args.file_args : "None");
     // Received help from the ta using threads globally and in regards to semaphores we were using sema_init(&launched, 0) sema_init(&exiting, 0);
-    // TODO: delete all the way to log(L_TRACE, "process_execute: Creating thread for file_name='%s'", args.file_name);
-    // TODO: use tid = thread_crate(file_name, PRi_default, start_process, cmd_copy) if we are having line up issues 
     // Create a new thread to execute FILE_NAME for the process
     tid = thread_create(args.file_name, PRI_DEFAULT, start_process, &args);
 
     if (tid == TID_ERROR) {
         log(L_ERROR, "process_execute: Failed to create thread for command: %s", cmd);// TODO: Delete when we are finished
+        file_allow_write(file);
+        file_close(file);
         palloc_free_page(cmd_copy); // Free the allocated page if thread creation fails
     }
     // Lookup the thread we just created // Help from the TA regarding sema down and sema wait 
@@ -195,6 +208,13 @@ process_exit(void)
     // Wait for the parent to acknowledge the childs termination 
     sema_down(&cur->sema_exit);  // Ensures the parent has finished processing the thread 
 
+
+    // Allow writes to the executable and close it
+    if (cur->exec_file !=NULL) {
+        file_allow_write(cur->exec_file); // allow modifications to the file
+        file_close(cur->exec_file); // close the file 
+        cur->exec_file = NULL; // Clear the reference 
+    }
     /* Destroy the current process's page directory and switch back
      * to the kernel-only page directory. */
     pd = cur->pagedir; // Retrieves teh current process page directory 
