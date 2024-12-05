@@ -51,11 +51,7 @@ process_execute(const char *cmd)
     char *cmd_copy;  // A copy of the command to avoid race condition
     tid_t tid; // Thread id of the new process 
     struct args_struct args; // Parse the command into filename and args using strtok_r
-    // NOTE:
-    // To see this print, make sure LOGGING_LEVEL in this file is <= L_TRACE (6)
-    // AND LOGGING_ENABLE = 1 in lib/log.h
-    // TA HELP add struct thread *t = NULL // TODO: Delete if we are are not going to use 
-    //struct thread *t = NULL; // Pointer to the child thread 
+
     log(L_TRACE, "Started process execute: %s", cmd_copy);
 
     // Allocate memory for cmd_cpy 

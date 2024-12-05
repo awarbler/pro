@@ -133,6 +133,21 @@ page_fault(struct intr_frame *f)
      * (#PF)". */
     asm ("movl %%cr2, %0" : "=r" (fault_addr));
 
+    // Determine cause 
+    not_present = (f->error_code & PF_P) == 0;
+    write = (f->error_code & PF_W) != 0;
+    user = (f->error_code & PF_U) !=0; 
+
+    // validate the fault address
+    if (fault_addr == NULL || !is_user_vaddr(fault_addr)) {
+        // invalid address terminate the process
+        sys_exit(-1);
+    }
+
+    if (!not_present) {
+        sys_exit(-1);
+    }
+
     // Terminate process if fault address is invalid.
     // Check if the page is valid and handle it, or terminate otherwise.
     if (pagedir_get_page(thread_current()->pagedir, fault_addr) == NULL) {
