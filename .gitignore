@@ -1,0 +1,24 @@
+# Compiled objects and executables
+*.o
+*.a
+*.so
+*.dll
+*.exe
+
+# Build artifacts
+*.out
+*.d
+*.gch
+*.pch
+
+# IDE-specific files
+.DS_Store
+Thumbs.db
+*.suo
+*.ncb
+
+# Temporary and log files
+*.tmp
+*.log
+core
+.vscode
