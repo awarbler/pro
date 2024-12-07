@@ -7,4 +7,6 @@ targets.log
 qemu
 setitimer-helper.o
 
+.json 
+
 
