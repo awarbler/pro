@@ -22,3 +22,10 @@ Thumbs.db
 *.log
 core
 .vscode
+
+
+
+build
+bochsrc.txt
+bochsout.txt
+.json 
