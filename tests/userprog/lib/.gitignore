@@ -1,1 +1,4 @@
 *.d
+bochsrc.txt
+bochsout.txt
+.json 
