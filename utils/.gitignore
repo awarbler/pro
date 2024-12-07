@@ -9,3 +9,6 @@ settings.json
 targets.log
 configurationCache.log
 c_cpp_properties.json
+bochsrc.txt
+bochsout.txt
+.json 
